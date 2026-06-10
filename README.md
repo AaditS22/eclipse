@@ -1,6 +1,6 @@
 # Eclipse 🌒
 
-A gamified focus tracker with a deep-space 8-bit aesthetic. You are the astronaut. Focus is the mission.
+A gamified focus tracker with a space-based them.
 
 This is the **v1 single-player core** — everything runs in the browser with `localStorage`, no backend. Social features (study rooms, friends, leaderboards) are intentionally out of scope for v1.
 
