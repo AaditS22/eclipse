@@ -57,12 +57,19 @@ function defaultState() {
   };
 }
 
+// The localStorage key doubles as a per-user cache key. In account mode
+// it's set to `studyspace.v1.<userId>` so different accounts on the same
+// browser don't clobber each other; in local-only mode it stays the base.
+let storageKey = STORAGE_KEY;
+// Optional hook the cloud-sync layer registers to push state remotely.
+let persistHook = null;
+
 let state = load();
 const listeners = new Set();
 
 function load() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return defaultState();
     const parsed = JSON.parse(raw);
     // shallow-merge over defaults so new fields appear after upgrades
@@ -71,6 +78,26 @@ function load() {
     console.warn('Failed to load state, starting fresh', e);
     return defaultState();
   }
+}
+
+/** Point persistence at a specific cache key (per-user in account mode). */
+export function setStorageKey(key) {
+  storageKey = key;
+}
+
+/** Register a callback that receives state on every persist (cloud push). */
+export function onPersist(cb) {
+  persistHook = cb;
+}
+
+/**
+ * Replace the whole in-memory state (e.g. with a cloud save on login).
+ * Caches locally and notifies, but does NOT echo back to the cloud.
+ */
+export function hydrate(data) {
+  state = deepDefaults(data || {}, defaultState());
+  persistLocal();
+  emit();
 }
 
 /** Fill any missing keys in `obj` from `defaults` (one level deep on objects). */
@@ -105,12 +132,17 @@ export function update(mutator) {
   emit();
 }
 
-export function persist() {
+function persistLocal() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(storageKey, JSON.stringify(state));
   } catch (e) {
     console.warn('Persist failed', e);
   }
+}
+
+export function persist() {
+  persistLocal();
+  if (persistHook) persistHook(state);
 }
 
 export function subscribe(fn) {

@@ -3,7 +3,8 @@
    ============================================================ */
 
 import './styles.css';
-import { getState, subscribe, rolloverDaily, resetAll, update } from './state.js';
+import { getState, subscribe, rolloverDaily, resetAll, update, setStorageKey, hydrate, onPersist } from './state.js';
+import { authEnabled, getSession, onAuthChange, signUp, signIn, signOut, loadSave, queueSave } from './auth.js';
 import { isoDate } from './util.js';
 import { initStarfield } from './pixel/starfield.js';
 import { renderHUD, applyTheme } from './hud.js';
@@ -91,11 +92,12 @@ subscribe((s) => {
 // ---- Settings via long-press / click on HUD avatar ----
 function openSettings() {
   const s = getState();
-  modal(
+  const closeSettings = modal(
     `<h2>Settings</h2>
      <label class="field"><span>Commander name</span><input type="text" id="set-name" value="${s.user.username.replace(/"/g, '&quot;')}" /></label>
      <label class="toggle-row"><input type="checkbox" id="set-focusfx" ${s.settings?.focusFx !== false ? 'checked' : ''} /> <span>Deep-space focus animations<br><small class="muted">Immersive star-warp + drifting comets, rockets &amp; supernovae while the timer runs.</small></span></label>
      <p class="muted center" style="font-size:10px;margin:4px 0 12px">Daily goals are set per subject in the Subjects tab.</p>
+     ${authEnabled() ? `<div style="margin-bottom:8px"><button class="btn" id="set-logout" style="font-size:8px;width:100%">⏏ Log Out</button></div>` : ''}
      <div style="margin-top:8px"><button class="btn btn-red" id="set-reset" style="font-size:8px;width:100%">⚠ Reset All Progress</button></div>`,
     [
       { label: 'Cancel', className: 'btn-ghost', onClick: (c) => c() },
@@ -126,19 +128,17 @@ function openSettings() {
         toast('Fresh start, Cadet.');
       }
     });
+    document.getElementById('set-logout')?.addEventListener('click', async () => {
+      // Close settings, then sign out — onAuthChange shows the gate.
+      closeSettings();
+      timer.reset();
+      await signOut();
+    });
   }, 0);
 }
 
 // ---- Boot ----
-function boot() {
-  const today = isoDate();
-  rolloverDaily(today);
-  // Roll monthly rank + migrate any older subject records on launch.
-  update((st) => {
-    ensureMonth(st, today);
-    normalizeSubjects(st);
-    migrateLegacyCollection(st);
-  });
+async function boot() {
   initStarfield();
   applyTheme();
   renderHUD();
@@ -151,17 +151,93 @@ function boot() {
     if (e.target.closest('.hud-avatar')) openSettings();
   });
 
-  // First-run: a lightweight start page (name → subjects) instead of the
-  // normal app, shown only until `onboarded` is set. Returning users skip it.
-  if (!getState().onboarded) {
-    document.body.classList.add('onboarding');
-    renderOnboarding(viewEl, () => {
-      document.body.classList.remove('onboarding');
-      renderHUD();
-      renderNav();
-      navigate('dashboard', { animate: false });
+  if (authEnabled()) {
+    // React to auth changes (incl. logout) for the whole session.
+    onAuthChange((event) => {
+      if (event === 'SIGNED_OUT') showEntry(true);
     });
+    const session = await getSession();
+    if (session?.user) {
+      await loadUser(session.user);
+      startApp();
+    } else {
+      showEntry(true); // not signed in → onboarding wizard, account at the end
+    }
   } else {
+    // Local-only fallback (no Supabase configured): no accounts.
+    startApp();
+  }
+}
+
+/**
+ * Show the onboarding/auth wizard.
+ * @param {boolean} needsAccount  true when a visitor must create/log into an
+ *   account at the end; false when they're already signed in (or local-only)
+ *   and we just need their name + subjects.
+ */
+function showEntry(needsAccount) {
+  timer.reset();
+  if (needsAccount) onPersist(null); // not tied to a user yet
+  document.body.classList.add('onboarding'); // chrome-hidden, centered layout
+  renderHUD();
+  renderOnboarding(viewEl, {
+    needsAccount,
+    onComplete: (draft) => { applyDraft(draft); startApp(); },
+    onSignup: async (email, password, draft) => {
+      const { data, error } = await signUp(email, password);
+      if (error) return { error: error.message };
+      if (!data.session) return { pending: true }; // email confirmation required
+      await loadUser(data.session.user);
+      applyDraft(draft);
+      startApp();
+      return {};
+    },
+    onLogin: async (email, password) => {
+      const { data, error } = await signIn(email, password);
+      if (error) return { error: error.message };
+      await loadUser(data.session.user);
+      startApp();
+      return {};
+    },
+  });
+}
+
+/** Write the collected onboarding draft (name + subjects) into state. */
+function applyDraft(draft) {
+  update((st) => {
+    st.user.username = draft.name || 'Cmdr. Cadet';
+    st.subjects.push(...draft.subjects);
+    st.onboarded = true;
+  });
+}
+
+/** Point persistence at this user and pull their cloud save into memory. */
+async function loadUser(user) {
+  setStorageKey(`studyspace.v1.${user.id}`);
+  let data = null;
+  try { data = await loadSave(user.id); } catch (e) { console.warn('Cloud load failed:', e.message); }
+  hydrate(data || {}); // remote save, or a fresh default (triggers onboarding)
+  onPersist((s) => queueSave(user.id, s)); // every persist now also syncs to the cloud
+}
+
+/** Daily/monthly housekeeping, then route to onboarding or the app. */
+function startApp() {
+  const today = isoDate();
+  rolloverDaily(today);
+  update((st) => {
+    ensureMonth(st, today);
+    normalizeSubjects(st);
+    migrateLegacyCollection(st);
+  });
+  applyTheme();
+  renderHUD();
+
+  if (!getState().onboarded) {
+    // Already signed in (or local-only) but no profile yet → collect name +
+    // subjects, no account step.
+    showEntry(false);
+  } else {
+    document.body.classList.remove('onboarding');
     renderNav();
     renderView();
   }
