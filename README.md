@@ -31,8 +31,8 @@ All sprites are inline SVG (one `<rect>` per pixel) or canvas — no image files
 
 ## Design notes
 
-- **No enforcement, no judgment.** Quests only ever reward — incomplete quests just roll over with the new day/week and never touch your streak.
-- **Anti-grind cap.** Time-based XP is capped at 600/day; bonuses (streak, goal) and quest rewards are uncapped.
+- **No enforcement** Quests only ever reward, incomplete quests just roll over with the new day/week and never touch your streak.
+- **Anti-grind cap.** Time-based XP is capped; bonuses (streak, goal) and quest rewards are uncapped.
 - **Theme/accent** is driven by the equipped Dashboard Theme cosmetic.
 - Open **settings** by tapping your avatar (top-left). It includes a full reset.
 - Debug from the console via `window.Eclipse`.
