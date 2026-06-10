@@ -22,6 +22,9 @@ import { renderOnboarding } from './views/onboarding.js';
 import { migrateLegacyCollection } from './collection.js';
 import { processSessionEnd } from './session.js';
 
+// Initialize Vercel Web Analytics
+import { inject } from '@vercel/analytics';
+
 const VIEWS = {
   dashboard: { label: 'Home', icon: '🌒', render: renderDashboard },
   timer: { label: 'Timer', icon: '⏱️', render: renderTimer },
@@ -139,6 +142,9 @@ function boot() {
   initStarfield();
   applyTheme();
   renderHUD();
+  
+  // Initialize Vercel Web Analytics
+  inject();
 
   // HUD avatar opens settings
   document.getElementById('hud').addEventListener('click', (e) => {
