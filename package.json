@@ -1,0 +1,15 @@
+{
+  "name": "eclipse",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Eclipse — a gamified, deep-space 8-bit focus tracker",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.4.10"
+  }
+}

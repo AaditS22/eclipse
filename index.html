@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Eclipse — Focus Tracker</title>
+    <meta name="description" content="Eclipse — a gamified, deep-space 8-bit focus tracker. You are the astronaut. Focus is the mission." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <!-- Animated star-field background (3 parallax layers) -->
+    <div id="starfield" aria-hidden="true">
+      <canvas id="stars-far"></canvas>
+      <canvas id="stars-mid"></canvas>
+      <canvas id="stars-near"></canvas>
+    </div>
+
+    <!-- Warp transition overlay -->
+    <div id="warp" aria-hidden="true"></div>
+
+    <!-- App HUD top bar -->
+    <header id="hud"></header>
+
+    <!-- Main view container (router swaps content here) -->
+    <main id="view" tabindex="-1"></main>
+
+    <!-- Bottom navigation (game console style) -->
+    <nav id="nav"></nav>
+
+    <!-- Floating layers: modals, XP popups, toasts -->
+    <div id="overlay"></div>
+    <div id="fx" aria-hidden="true"></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
