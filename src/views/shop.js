@@ -13,6 +13,7 @@ import { modal, toast } from '../ui.js';
 import { applyTheme } from '../hud.js';
 import { GENERATORS, getGenerator, rarityOdds } from '../collection.js';
 import { generateArt, artSVG, fitScale } from '../pixel/artgen.js';
+import { fmtCredits } from '../util.js';
 
 const RARITY_COLOR = {
   common: '#6b7280',
@@ -29,7 +30,7 @@ export function renderShop(root, { rerenderAll }) {
     <section class="panel">
       <div class="between">
         <div class="panel-title" style="margin:0">The Shop</div>
-        <div class="hud-credits pixel" style="font-size:10px">◈ ${s.user.credits} Credits</div>
+        <div class="hud-credits pixel" style="font-size:10px">◈ ${fmtCredits(s.user.credits)} Credits</div>
       </div>
       <div class="muted" style="margin-top:8px;font-size:11px">Earn 1 Credit per 100 XP. Forge one-of-a-kind art, recolour your suit, and unlock planet themes. Everything you forge shows up in your <b>Profile</b>.</div>
     </section>

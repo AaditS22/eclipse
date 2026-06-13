@@ -7,7 +7,7 @@
 
 import { getState, update } from '../state.js';
 import { ACHIEVEMENTS } from '../achievements.js';
-import { fmtDuration, isoDate, escapeHtml, DAYS } from '../util.js';
+import { fmtDuration, isoDate, escapeHtml, fmtCredits, DAYS } from '../util.js';
 import { RARITY } from '../cosmetics.js';
 import { getGenerator } from '../collection.js';
 import { artSVG, seedSig, fitScale, getRelicTier } from '../pixel/artgen.js';
@@ -133,7 +133,7 @@ function userCardHTML(s, totalMin) {
       <div><b>${hours}h</b><span>studied</span></div>
       <div><b>${u.level}</b><span>level</span></div>
       <div><b>${u.streak}</b><span>day streak</span></div>
-      <div><b>${u.credits}</b><span>credits</span></div>
+      <div><b>${fmtCredits(u.credits)}</b><span>credits</span></div>
     </div>
   </section>`;
 }

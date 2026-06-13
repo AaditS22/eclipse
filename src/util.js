@@ -52,6 +52,14 @@ export function fmtTime(minOfDay) {
   return `${h}:${String(m).padStart(2, '0')} ${ap}`;
 }
 
+/** Credits can be fractional. Show up to 2 decimals, trimming trailing
+ *  zeros (2 → "2", 2.5 → "2.5", 2.45 → "2.45"). */
+export function fmtCredits(n) {
+  const r = Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+  if (Number.isInteger(r)) return String(r);
+  return r.toFixed(2).replace(/\.?0+$/, '');
+}
+
 export function uid(prefix = 'id') {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 }
