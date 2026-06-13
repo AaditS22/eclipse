@@ -48,6 +48,7 @@ body {
   font-size: 13px;
   line-height: 1.5;
   overflow-x: hidden;
+  overflow-wrap: break-word;
   -webkit-font-smoothing: none;
   text-rendering: optimizeSpeed;
 }
@@ -169,6 +170,13 @@ a {
   align-items: center;
   gap: 8px;
   margin-bottom: 6px;
+  min-width: 0;
+}
+.hud-name > span:first-of-type {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .hud-level-badge {
   font-family: var(--font-pixel);
@@ -427,6 +435,7 @@ label.field > span {
 .row {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
 }
 .col {
   display: flex;
@@ -1802,11 +1811,77 @@ body.onboarding #view {
   #focus-fx { display: none; }
 }
 
-/* ---------- Responsive ---------- */
+/* ============================================================
+   Responsive — phones & small windows
+   ============================================================ */
+
+/* Tablets / small laptop windows: tighten the outer gutter so the
+   880px content column doesn't crowd the viewport edges. */
+@media (max-width: 720px) {
+  #view {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}
+
+/* Phones (and narrow desktop windows) ---------------------------- */
 @media (max-width: 560px) {
+  /* HUD: shrink the avatar, gaps and type so the three columns stop
+     fighting for space and the XP read-out keeps its full line. */
+  .hud-inner {
+    gap: 8px;
+    padding: 0 10px;
+  }
+  .hud-avatar {
+    width: 40px;
+    height: 40px;
+  }
+  .hud-name {
+    font-size: 9px;
+    gap: 6px;
+    margin-bottom: 5px;
+  }
+  .hud-stats {
+    font-size: 10px;
+    gap: 4px;
+  }
+  .hud-rank,
+  .hud-streak,
+  .hud-credits {
+    white-space: nowrap;
+  }
+  .xp-label {
+    font-size: 6px;
+  }
+
+  /* Panels & view: reclaim a little horizontal room. */
+  #view {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .panel {
+    padding: 14px;
+  }
+
+  /* Timer hero */
   .timer-clock {
     font-size: 34px;
   }
+  body.focus-mode .timer-clock {
+    font-size: 52px;
+  }
+
+  /* Weekly heat-map keeps legible cells by scrolling sideways rather
+     than squashing 24 columns into a sliver. */
+  #pf-heat {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .heatmap {
+    min-width: 460px;
+  }
+
+  /* Calendar */
   .cal {
     grid-template-columns: repeat(7, 1fr);
     gap: 3px;
@@ -1815,7 +1890,47 @@ body.onboarding #view {
     min-height: 72px;
     font-size: 8px;
   }
-  .hud-name {
-    font-size: 9px;
+
+  /* Card grids: smaller minimums so two columns survive on phones. */
+  .shop-grid {
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+    gap: 10px;
+  }
+  .polaroid-grid {
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+    gap: 12px;
+  }
+  .ach-grid {
+    grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  }
+
+  /* Profile user-card stat strip wraps to 2×2 instead of cramming 4. */
+  .pc-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Extra-small phones ------------------------------------------------ */
+@media (max-width: 400px) {
+  #view {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .panel {
+    padding: 12px;
+  }
+  .timer-clock {
+    font-size: 30px;
+  }
+  .eclipse-wordmark {
+    font-size: 18px;
+    letter-spacing: 3px;
+  }
+  /* Single-column where multi-column would leave unusably narrow cards. */
+  .forge-grid {
+    grid-template-columns: 1fr;
+  }
+  .nav-btn {
+    font-size: 6px;
   }
 }
