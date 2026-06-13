@@ -172,7 +172,7 @@ a {
   margin-bottom: 6px;
   min-width: 0;
 }
-.hud-name > span:first-child {
+.hud-name > span:first-of-type {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
