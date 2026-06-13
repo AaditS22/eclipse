@@ -39,11 +39,23 @@ function restore() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const saved = JSON.parse(raw);
-    if (!saved || saved.startedAt == null) return;
-    Object.assign(t, saved);
+    // Whitelist + coerce each field rather than trusting the blob — guards
+    // against corrupt, hand-edited, or future-shaped saves producing NaN
+    // math or stray keys on the live timer.
+    const startedAt = Number(saved?.startedAt);
+    if (!Number.isFinite(startedAt)) return;
+    const accumulatedMs = Number(saved?.accumulatedMs ?? 0);
+    const lastResumeAt = saved?.lastResumeAt == null ? null : Number(saved.lastResumeAt);
+
+    t.subject = typeof saved?.subject === 'string' ? saved.subject : '';
+    t.startedAt = startedAt;
+    t.accumulatedMs = Number.isFinite(accumulatedMs) && accumulatedMs >= 0 ? accumulatedMs : 0;
+    t.lastResumeAt = Number.isFinite(lastResumeAt) ? lastResumeAt : null;
+    t.running = Boolean(saved?.running) && t.lastResumeAt !== null;
+
     // If it was running when we left, elapsedMs() naturally includes the
     // time the page was closed (Date.now() - lastResumeAt). Resume ticking.
-    if (t.running && t.lastResumeAt) startTicking();
+    if (t.running) startTicking();
   } catch (e) {
     /* corrupt/unreadable — ignore and start clean */
   }
