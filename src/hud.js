@@ -9,7 +9,7 @@ import { levelProgress } from './xp.js';
 import { rankProgress } from './rank.js';
 import { astronautSVG, planetIconSVG, flameSVG } from './pixel/sprites.js';
 import { getCosmetic } from './cosmetics.js';
-import { escapeHtml } from './util.js';
+import { escapeHtml, fmtCredits } from './util.js';
 
 const XP_SEGMENTS = 20;
 
@@ -70,7 +70,7 @@ export function renderHUD() {
       <div class="hud-stats">
         <span class="hud-rank" title="This month's rank">${planetIconSVG(rp.planet.id, 2)} ${rp.planet.name}</span>
         <span class="hud-streak">${streakFlame} ${u.streak}d</span>
-        <span class="hud-credits">◈ ${u.credits} Cr</span>
+        <span class="hud-credits">◈ ${fmtCredits(u.credits)} Cr</span>
       </div>
     </div>`;
 }

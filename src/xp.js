@@ -107,9 +107,12 @@ export function computeSessionXp(ctx) {
   };
 }
 
-/** How credits change when lifetime XP goes from `oldXp` to `newXp`. */
+/** How credits change when lifetime XP goes from `oldXp` to `newXp`.
+ *  Credits accrue continuously (fractionally) so every minute counts —
+ *  no more all-or-nothing jumps at the 100-XP boundary. Rounded to 2
+ *  decimals to keep stored balances tidy. Shop prices stay whole. */
 export function creditsGained(oldXp, newXp) {
-  return Math.floor(newXp / XP.CREDITS_PER_XP) - Math.floor(oldXp / XP.CREDITS_PER_XP);
+  return Math.round(((newXp - oldXp) / XP.CREDITS_PER_XP) * 100) / 100;
 }
 
 /**

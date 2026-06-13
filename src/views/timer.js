@@ -5,7 +5,7 @@
 import { getState } from '../state.js';
 import * as timer from '../timerStore.js';
 import { processSessionEnd } from '../session.js';
-import { fmtClock, fmtDuration, escapeHtml, isoDate, prefersReducedMotion } from '../util.js';
+import { fmtClock, fmtDuration, escapeHtml, isoDate, fmtCredits, prefersReducedMotion } from '../util.js';
 import { modal, xpPopup, toast, renderSubjectPicker, promptSubjectCompletion } from '../ui.js';
 import { confettiBurst, startFocusFx, stopFocusFx, spawnEvent } from '../pixel/starfield.js';
 import { featuredPiece } from '../collection.js';
@@ -242,7 +242,7 @@ function showSummary(summary, onClose) {
   }
   rows.push(`<div class="summary-row" style="border-bottom:none;font-weight:700"><span>Total XP</span><span class="v">+${summary.totalXp ?? b.total} ⭐</span></div>`);
   if (summary.creditsEarned > 0)
-    rows.push(`<div class="summary-row"><span>Credits</span><span class="v" style="color:var(--green)">+${summary.creditsEarned} ◈</span></div>`);
+    rows.push(`<div class="summary-row"><span>Credits</span><span class="v" style="color:var(--green)">+${fmtCredits(summary.creditsEarned)} ◈</span></div>`);
 
   let extras = '';
   if (summary.rankedUp) extras += `<div class="badge-ribbon" style="background:var(--accent);color:#0b0e1a">🪐 RANK UP! Reached ${summary.newPlanet.name}</div>`;

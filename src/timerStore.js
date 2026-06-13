@@ -1,10 +1,16 @@
 /* ============================================================
-   Live timer store — survives view navigation. Tracks elapsed
-   time across pauses and notifies subscribers each second.
+   Live timer store — survives view navigation AND page reloads.
+   Tracks elapsed time across pauses and notifies subscribers each
+   second. The full timer is persisted to localStorage so that
+   closing/reopening the site resumes the same session; because
+   elapsed time is derived from real timestamps, a session that was
+   running keeps counting the wall-clock time it was away.
    ============================================================ */
 
 /** Sessions shorter than this are discarded (anti-fat-finger / anti-exploit). */
 export const MIN_SESSION_MS = 60000;
+
+const STORAGE_KEY = 'studyspace.timer.v1';
 
 const listeners = new Set();
 
@@ -17,6 +23,31 @@ const t = {
 };
 
 let interval = null;
+
+// ---- Persistence: keep the live session across reloads ----
+function save() {
+  try {
+    if (t.startedAt === null) localStorage.removeItem(STORAGE_KEY);
+    else localStorage.setItem(STORAGE_KEY, JSON.stringify(t));
+  } catch (e) {
+    /* storage may be unavailable (private mode etc.) — degrade silently */
+  }
+}
+
+function restore() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (!saved || saved.startedAt == null) return;
+    Object.assign(t, saved);
+    // If it was running when we left, elapsedMs() naturally includes the
+    // time the page was closed (Date.now() - lastResumeAt). Resume ticking.
+    if (t.running && t.lastResumeAt) startTicking();
+  } catch (e) {
+    /* corrupt/unreadable — ignore and start clean */
+  }
+}
 
 export function elapsedMs() {
   return t.accumulatedMs + (t.running && t.lastResumeAt ? Date.now() - t.lastResumeAt : 0);
@@ -42,6 +73,7 @@ export function start(subject) {
   t.running = true;
   t.lastResumeAt = Date.now();
   startTicking();
+  save();
   emit();
 }
 
@@ -51,11 +83,13 @@ export function pause() {
   t.lastResumeAt = null;
   t.running = false;
   stopTicking();
+  save();
   emit();
 }
 
 export function setSubject(subject) {
   t.subject = subject;
+  save();
   emit();
 }
 
@@ -82,8 +116,12 @@ export function reset() {
   t.accumulatedMs = 0;
   t.lastResumeAt = null;
   stopTicking();
+  save();
   emit();
 }
+
+// Rehydrate any in-flight session from a previous visit.
+restore();
 
 export function subscribe(fn) {
   listeners.add(fn);
