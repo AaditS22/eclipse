@@ -13,14 +13,14 @@
    ============================================================ */
 
 import { getState, update } from '../state.js';
-import { escapeHtml, fmtDuration, fmtClock } from '../util.js';
+import { escapeHtml, fmtDuration, fmtClock, fmtTime, minutesOfDay } from '../util.js';
 import { astronautSVG } from '../pixel/sprites.js';
 import { toast, confirmModal } from '../ui.js';
 import * as timer from '../timerStore.js';
 import {
   socialEnabled, ensureHandle, listFriends, listRequests, getLeaderboard,
   fetchFriendsPresence, searchUsers, sendRequest, respondRequest, removeFriend,
-  subscribePresence, publishPresence,
+  subscribePresence, publishPresence, fetchFriendsActivity,
 } from '../social.js';
 
 let presenceUnsub = null;
@@ -69,6 +69,7 @@ function headerPanel(handle, settings) {
     <div class="muted" style="font-size:11px;margin:8px 0 14px">Share this so friends can add you.</div>
     <label class="toggle-row"><input type="checkbox" id="crew-ghost" ${settings?.ghostMode ? 'checked' : ''}/> <span>Ghost mode<br><small class="muted">Hide your studying status from everyone.</small></span></label>
     <label class="toggle-row"><input type="checkbox" id="crew-hidesubj" ${settings?.hideSubject ? 'checked' : ''}/> <span>Hide subject<br><small class="muted">Show that you're studying, but not what.</small></span></label>
+    <label class="toggle-row"><input type="checkbox" id="crew-activity" ${settings?.shareActivity !== false ? 'checked' : ''}/> <span>Share today's activity<br><small class="muted">Let friends see a history of your sessions today, not just live.</small></span></label>
   </section>
   <section class="panel">
     <div class="panel-title">Add Friend</div>
@@ -95,6 +96,9 @@ function wireHeader(root) {
   root.querySelector('#crew-hidesubj')?.addEventListener('change', (e) => {
     update((st) => { st.settings.hideSubject = e.target.checked; });
     repushPresence();
+  });
+  root.querySelector('#crew-activity')?.addEventListener('change', (e) => {
+    update((st) => { st.settings.shareActivity = e.target.checked; });
   });
 
   const search = root.querySelector('#crew-search');
@@ -168,7 +172,11 @@ async function loadAndRender(root) {
     return;
   }
 
-  const presence = await fetchFriendsPresence(friends.map((f) => f.profile.id));
+  const friendIds = friends.map((f) => f.profile.id);
+  const [presence, activity] = await Promise.all([
+    fetchFriendsPresence(friendIds),
+    fetchFriendsActivity(friendIds),
+  ]);
   const studyingNow = friends
     .map((f) => ({ f, p: presence[f.profile.id] }))
     .filter((x) => x.p && x.p.is_studying && x.p.started_at);
@@ -177,6 +185,7 @@ async function loadAndRender(root) {
 
   body.innerHTML =
     studyingSection(studyingNow) +
+    activitySection(activity, friends) +
     requestsSection(requests) +
     friendsSection(friends, presence) +
     leaderboardSection(board);
@@ -202,6 +211,31 @@ function studyingSection(list) {
   return `<section class="panel">
     <div class="panel-title">🛰️ Studying Now${list.length ? ` · ${list.length}` : ''}</div>
     ${list.length ? rows : `<div class="muted center" style="padding:14px;font-size:12px">No friends studying right now. Be the one who starts.</div>`}
+  </section>`;
+}
+
+/** Today's finished sessions from friends (history, even when not live). */
+function activitySection(activity, friends) {
+  const byId = Object.fromEntries(friends.map((f) => [f.profile.id, f.profile]));
+  const rows = activity
+    .map((a) => {
+      const prof = byId[a.user_id];
+      if (!prof) return ''; // a friend we can't resolve — skip
+      const when = fmtTime(minutesOfDay(new Date(a.ended_at)));
+      const subj = a.subject ? escapeHtml(a.subject) : 'a focus session';
+      return `<div class="crew-row">
+        <div class="crew-av">${astronautSVG(prof.avatar_config || {}, 3)}</div>
+        <div class="crew-id">
+          <div class="crew-name">${escapeHtml(prof.username)}</div>
+          <div class="crew-sub muted">Studied ${subj} · ${escapeHtml(fmtDuration(a.minutes))}</div>
+        </div>
+        <div class="crew-mins muted" style="font-size:9px">${escapeHtml(when)}</div>
+      </div>`;
+    })
+    .join('');
+  return `<section class="panel">
+    <div class="panel-title">📜 Today's Activity</div>
+    ${rows || `<div class="muted center" style="padding:14px;font-size:12px">No study sessions logged by friends today, yet.</div>`}
   </section>`;
 }
 

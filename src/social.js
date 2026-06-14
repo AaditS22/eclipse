@@ -288,3 +288,51 @@ export function subscribePresence(onChange) {
     .subscribe();
   return () => supabase.removeChannel(channel);
 }
+
+/* ---------------- activity feed (today's history) ---------------- */
+
+/**
+ * Mirror a finished session to the friends activity feed. Opt-out via the
+ * `shareActivity` setting; honors `hideSubject` (logs a generic label instead
+ * of the subject name). Friend-scoped by RLS; no-ops without cloud/login.
+ */
+export async function logStudySession({ subject, minutes, startTime, endTime }) {
+  if (!supabase || !currentUserId) return;
+  const st = getState();
+  if (st.settings?.shareActivity === false) return; // explicit opt-out
+  const mins = Math.round(Number(minutes) || 0);
+  if (mins < 1) return;
+  const end = new Date(endTime);
+  const row = {
+    user_id: currentUserId,
+    subject: st.settings?.hideSubject ? 'Focus session' : (String(subject || '').trim() || 'Study'),
+    minutes: mins,
+    started_at: new Date(startTime).toISOString(),
+    ended_at: end.toISOString(),
+    // Bucket by the END day so a session that crosses midnight shows up under
+    // the day it finished — matching the ended_at the feed displays/filters on.
+    day: isoDate(end),
+  };
+  const { error } = await supabase.from('study_log').insert(row);
+  if (error) console.warn('[Eclipse] Activity log failed:', error.message);
+}
+
+/**
+ * Friends' study sessions for a given local day (default: today), newest
+ * first. RLS already restricts rows to accepted friends + yourself.
+ */
+export async function fetchFriendsActivity(friendIds, day = isoDate()) {
+  if (!supabase || !friendIds.length) return [];
+  const { data, error } = await supabase
+    .from('study_log')
+    .select('user_id, subject, minutes, ended_at')
+    .in('user_id', friendIds)
+    .eq('day', day)
+    .order('ended_at', { ascending: false })
+    .limit(100);
+  if (error) {
+    console.warn('[Eclipse] Activity fetch failed:', error.message);
+    return [];
+  }
+  return data || [];
+}
