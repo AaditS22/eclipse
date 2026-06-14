@@ -20,7 +20,6 @@ let unsub = null;
 const COUNTDOWN_PRESETS = [15, 25, 50]; // minutes
 let pendingMode = 'stopwatch';   // 'stopwatch' | 'countdown'
 let pendingMinutes = 25;         // countdown target when pendingMode === 'countdown'
-let countdownHandled = false;    // guards the one-shot countdown-complete finalize
 
 // ---- Deep-Space Focus Mode state ----
 const BEAT_MS = 25 * 60 * 1000; // a "focus beat" every 25 minutes
@@ -86,6 +85,24 @@ function previewClockText() {
 }
 function previewClockSub() {
   return pendingMode === 'countdown' ? `Counts down from ${fmtDuration(pendingMinutes)}` : '';
+}
+
+/**
+ * Finalize a finished session (manual stop OR countdown completion): award
+ * XP, mirror it to the friends activity feed, and show the summary. Shared so
+ * a countdown completing while off the Timer view finalizes identically.
+ * @param {{subject:string,startTime:number,endTime:number}} result
+ */
+export function finalizeSession(result, { completed = false } = {}, onClose) {
+  const summary = processSessionEnd(result.subject, result.startTime, result.endTime);
+  // Friend-scoped + opt-out aware inside social.js; no-ops without cloud.
+  logStudySession({ subject: result.subject, minutes: summary.durationMinutes, startTime: result.startTime, endTime: result.endTime });
+  if (completed) {
+    confettiBurst();
+    toast(`✦ Countdown complete — ${fmtDuration(summary.durationMinutes)} logged!`);
+  }
+  showSummary(summary, onClose);
+  return summary;
 }
 
 export function renderTimer(root, { rerenderAll, navigate }) {
@@ -197,7 +214,6 @@ export function renderTimer(root, { rerenderAll, navigate }) {
         const subj = (timer.timerState().subject || '').trim();
         if (!subj) { toast('Pick a subject first, Commander.'); return; }
         if (pendingMode === 'countdown' && pendingMinutes < 1) { toast('Set a countdown of at least 1 minute.'); return; }
-        countdownHandled = false;
         timer.start(subj, pendingMode === 'countdown' ? { mode: 'countdown', targetMs: pendingMinutes * 60000 } : {});
       };
     } else if (st.running) {
@@ -215,35 +231,16 @@ export function renderTimer(root, { rerenderAll, navigate }) {
     }
   }
 
-  function doStop({ completed = false } = {}) {
-    // A completed countdown logs exactly its target — even if the user was on
-    // another view when it hit zero (the store keeps counting wall-clock time).
-    const targetMs = timer.timerState().targetMs;
+  function doStop() {
     const result = timer.stop();
     // Leaving the session: drop the immersive view and reset for next time.
     exitFocus();
     immersive = true;
     beatsSeen = 0;
-    countdownHandled = false;
     if (toggleBtn) { toggleBtn.remove(); toggleBtn = null; }
     if (!result) return;
-    if (completed && targetMs > 0) {
-      result.endTime = result.startTime + targetMs;
-      result.elapsedMs = targetMs;
-    }
-    if (result.elapsedMs < MIN_SESSION_MS) {
-      if (!completed) toast('Session too short to log (under a minute).');
-      return;
-    }
-    const summary = processSessionEnd(result.subject, result.startTime, result.endTime);
-    // Mirror the finished session to the friends activity feed (opt-out + RLS
-    // friend-scoped inside social.js; no-ops when cloud isn't configured).
-    logStudySession({ subject: result.subject, minutes: summary.durationMinutes, startTime: result.startTime, endTime: result.endTime });
-    if (completed) {
-      confettiBurst();
-      toast(`✦ Countdown complete — ${fmtDuration(summary.durationMinutes)} logged!`);
-    }
-    showSummary(summary, () => rerenderAll());
+    if (result.elapsedMs < MIN_SESSION_MS) { toast('Session too short to log (under a minute).'); return; }
+    finalizeSession(result, { completed: false }, () => rerenderAll());
   }
 
   let lastActive = ts.active;
@@ -253,13 +250,13 @@ export function renderTimer(root, { rerenderAll, navigate }) {
     clock.classList.toggle('countdown', st.mode === 'countdown');
     clockSubEl.textContent = clockSub(st);
     subjectLabel.textContent = st.subject ? st.subject : 'SELECT A SUBJECT';
-    if (st.active !== lastActive) { lastActive = st.active; renderPicker(); renderMode(); }
-
-    // Countdown reached zero → finalize once (celebrate in doStop).
-    if (st.mode === 'countdown' && st.running && st.completed && !countdownHandled) {
-      countdownHandled = true;
-      doStop({ completed: true });
-      return;
+    if (st.active !== lastActive) {
+      lastActive = st.active;
+      // Session ended (manual stop OR a countdown that completed via the global
+      // ticker, possibly while this view was unmounted): reset per-session focus.
+      if (!st.active) { immersive = true; beatsSeen = 0; }
+      renderPicker();
+      renderMode();
     }
 
     renderControls();

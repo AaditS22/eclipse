@@ -18,7 +18,7 @@ create table if not exists public.study_log (
   minutes    int  not null,
   started_at timestamptz not null,
   ended_at   timestamptz not null,
-  day        date not null,                 -- studier's local day (for "today" filtering)
+  day        date not null,                 -- studier's local day of ended_at (for "today" filtering)
   created_at timestamptz not null default now()
 );
 create index if not exists study_log_user_day_idx on public.study_log (user_id, day);

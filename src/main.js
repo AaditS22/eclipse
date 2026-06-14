@@ -14,7 +14,7 @@ import { normalizeSubjects } from './subjects.js';
 import * as timer from './timerStore.js';
 
 import { renderDashboard } from './views/dashboard.js';
-import { renderTimer, cleanupTimer } from './views/timer.js';
+import { renderTimer, cleanupTimer, finalizeSession } from './views/timer.js';
 import { renderShop } from './views/shop.js';
 import { renderSubjects } from './views/subjects.js';
 import { renderOrbit } from './views/orbit.js';
@@ -107,6 +107,12 @@ timer.subscribe((ts) => {
   lastPresenceKey = key;
   social.publishPresence({ studying: ts.running, subject: ts.subject, startedAt: ts.startedAt });
 });
+
+// ---- Countdown auto-finalize (fires globally, not just on the Timer view) ----
+// The store's ticker detects a countdown hitting zero even when the user is on
+// another view; finalize it here so XP, the activity log, and the summary all
+// happen exactly once regardless of where they are.
+timer.setOnComplete((result) => finalizeSession(result, { completed: true }, () => rerenderAll()));
 
 // ---- Settings via long-press / click on HUD avatar ----
 function openSettings() {

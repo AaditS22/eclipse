@@ -302,14 +302,16 @@ export async function logStudySession({ subject, minutes, startTime, endTime }) 
   if (st.settings?.shareActivity === false) return; // explicit opt-out
   const mins = Math.round(Number(minutes) || 0);
   if (mins < 1) return;
-  const start = new Date(startTime);
+  const end = new Date(endTime);
   const row = {
     user_id: currentUserId,
     subject: st.settings?.hideSubject ? 'Focus session' : (String(subject || '').trim() || 'Study'),
     minutes: mins,
-    started_at: start.toISOString(),
-    ended_at: new Date(endTime).toISOString(),
-    day: isoDate(start),
+    started_at: new Date(startTime).toISOString(),
+    ended_at: end.toISOString(),
+    // Bucket by the END day so a session that crosses midnight shows up under
+    // the day it finished — matching the ended_at the feed displays/filters on.
+    day: isoDate(end),
   };
   const { error } = await supabase.from('study_log').insert(row);
   if (error) console.warn('[Eclipse] Activity log failed:', error.message);

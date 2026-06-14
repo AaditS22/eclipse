@@ -166,12 +166,44 @@ export function subscribe(fn) {
   return () => listeners.delete(fn);
 }
 
+let onComplete = null;
+/**
+ * Register the handler fired when a countdown reaches its target. Detection
+ * lives in the global ticker (not any view), so completion finalizes even if
+ * the user has navigated away from the Timer view. Returns the bounded
+ * session result { subject, startTime, endTime, elapsedMs, completed }.
+ */
+export function setOnComplete(fn) { onComplete = fn; }
+
 function emit() {
   for (const fn of listeners) fn(timerState());
 }
+
+/** One ticker step: finalize a finished countdown, otherwise just notify. */
+function onTick() {
+  if (t.mode === 'countdown' && t.running && elapsedMs() >= t.targetMs) {
+    finishCountdown();
+    return;
+  }
+  emit();
+}
+
+/** A countdown hit its goal: capture bounds capped to the target, reset, notify. */
+function finishCountdown() {
+  const result = {
+    subject: t.subject,
+    startTime: t.startedAt,
+    endTime: t.startedAt + t.targetMs, // cap to the goal — never over-count
+    elapsedMs: t.targetMs,
+    completed: true,
+  };
+  reset(); // clears state + emits (subscribers see the session end)
+  onComplete?.(result);
+}
+
 function startTicking() {
   if (interval) return;
-  interval = setInterval(emit, 1000);
+  interval = setInterval(onTick, 1000);
 }
 function stopTicking() {
   if (interval && !t.running) {
