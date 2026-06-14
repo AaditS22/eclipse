@@ -189,6 +189,7 @@ export function renderTimer(root, { rerenderAll, navigate }) {
     custom?.addEventListener('input', () => {
       const v = Math.min(600, Math.max(1, Math.round(Number(custom.value) || 0)));
       pendingMinutes = v;
+      if (String(custom.value) !== String(v)) custom.value = String(v);
       modeWrap.querySelectorAll('.t-preset').forEach((p) => {
         p.classList.toggle('btn-primary', Number(p.dataset.min) === v);
         p.classList.toggle('btn-ghost', Number(p.dataset.min) !== v);
