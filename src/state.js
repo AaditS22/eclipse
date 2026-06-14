@@ -12,6 +12,7 @@ function defaultState() {
   return {
     user: {
       username: 'Cmdr. Cadet',
+      handle: null, // unique @code for friends (minted on first cloud sync)
       level: 1,
       xp: 0, // lifetime XP
       credits: 0,
@@ -43,6 +44,8 @@ function defaultState() {
     settings: {
       reducedMotion: false,
       focusFx: true, // deep-space ambient animations while the timer runs
+      ghostMode: false, // hide your studying status from friends
+      hideSubject: false, // share that you're studying, but not the subject name
     },
     // bookkeeping for caps / daily bonuses
     daily: {

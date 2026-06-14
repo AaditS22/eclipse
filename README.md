@@ -2,7 +2,7 @@
 
 A gamified focus tracker with a space-based them.
 
-This is the **v1 single-player core** — everything runs in the browser with `localStorage`, no backend. Social features (study rooms, friends, leaderboards) are intentionally out of scope for v1.
+Everything runs in the browser; progress lives in `localStorage` and (when accounts are configured) syncs to Supabase. **Friends** adds social features — add friends by @code, live "studying now" presence, and a weekly leaderboard — backed entirely by the Supabase free tier (no dedicated server).
 
 ## Run it
 
@@ -26,6 +26,19 @@ npm run preview  # preview the production build
 | **Solar-system rank** (monthly planet journey, astronaut orbit view, monthly trophies) | `src/rank.js`, `src/views/orbit.js` |
 | **Stats** (subject donut, productivity heatmap, session log) + **achievements** | `src/views/stats.js`, `src/achievements.js` |
 | **Pixel art** (astronaut, rocket, planets, Eclipse logo, companions) + animated star field | `src/pixel/` |
+| **Friends** (add by @code, live studying-now presence, weekly leaderboard, ghost/hide-subject privacy) | `src/social.js`, `src/views/social.js` |
+
+## Friends / social setup
+
+The Friends feature needs cloud accounts (Supabase) configured via `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`. Without them the app runs local-only and the Friends tab is hidden.
+
+To enable it, run [`db/social.sql`](db/social.sql) once in the Supabase **SQL Editor** (Dashboard → SQL Editor → paste → Run). It's idempotent and creates:
+
+- `profiles` — a public, queryable slice of each player (name, @code, level, avatar, weekly totals), mirrored from local state on save. The private game blob stays in `saves`.
+- `friendships` — request / accept / remove, one row per pair.
+- `presence` — who's studying now; written only on timer start/stop (elapsed time is derived client-side, so no heartbeat writes).
+
+All three are protected by Row Level Security: presence and the full profile are readable **only by accepted friends**; a thin profile slice is readable by any signed-in user so friend search works. Presence is streamed over Supabase Realtime, which respects the same RLS.
 
 All sprites are inline SVG (one `<rect>` per pixel) or canvas — no image files. Respects `prefers-reduced-motion`.
 
