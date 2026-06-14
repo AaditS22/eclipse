@@ -20,6 +20,8 @@ const t = {
   startedAt: null, // ms, the real clock start of the session
   accumulatedMs: 0, // time banked before the current resume
   lastResumeAt: null,
+  mode: 'stopwatch', // 'stopwatch' counts up; 'countdown' counts toward a target
+  targetMs: 0, // countdown goal in ms (0 for stopwatch)
 };
 
 let interval = null;
@@ -46,12 +48,15 @@ function restore() {
     if (!Number.isFinite(startedAt)) return;
     const accumulatedMs = Number(saved?.accumulatedMs ?? 0);
     const lastResumeAt = saved?.lastResumeAt == null ? null : Number(saved.lastResumeAt);
+    const targetMs = Number(saved?.targetMs ?? 0);
 
     t.subject = typeof saved?.subject === 'string' ? saved.subject : '';
     t.startedAt = startedAt;
     t.accumulatedMs = Number.isFinite(accumulatedMs) && accumulatedMs >= 0 ? accumulatedMs : 0;
     t.lastResumeAt = Number.isFinite(lastResumeAt) ? lastResumeAt : null;
     t.running = Boolean(saved?.running) && t.lastResumeAt !== null;
+    t.mode = saved?.mode === 'countdown' ? 'countdown' : 'stopwatch';
+    t.targetMs = t.mode === 'countdown' && Number.isFinite(targetMs) && targetMs > 0 ? targetMs : 0;
 
     // If it was running when we left, elapsedMs() naturally includes the
     // time the page was closed (Date.now() - lastResumeAt). Resume ticking.
@@ -66,20 +71,39 @@ export function elapsedMs() {
 }
 
 export function timerState() {
+  const elapsed = elapsedMs();
+  const countdown = t.mode === 'countdown';
   return {
     running: t.running,
     subject: t.subject,
     startedAt: t.startedAt,
-    elapsedMs: elapsedMs(),
+    elapsedMs: elapsed,
     active: t.startedAt !== null,
+    mode: t.mode,
+    targetMs: t.targetMs,
+    // Countdown-only: time left (floored at 0) and whether the goal is reached.
+    remainingMs: countdown ? Math.max(0, t.targetMs - elapsed) : null,
+    completed: countdown ? elapsed >= t.targetMs : false,
   };
 }
 
-export function start(subject) {
+/**
+ * Begin (or resume) a session. On a fresh session, `opts.mode` selects
+ * 'stopwatch' (default) or 'countdown'; for countdown, `opts.targetMs` sets
+ * the goal. Mode/target are locked once a session is underway.
+ */
+export function start(subject, opts = {}) {
   if (t.running) return;
   if (t.startedAt === null) {
     t.startedAt = Date.now();
     t.accumulatedMs = 0;
+    if (opts.mode === 'countdown' && Number(opts.targetMs) > 0) {
+      t.mode = 'countdown';
+      t.targetMs = Math.round(Number(opts.targetMs));
+    } else {
+      t.mode = 'stopwatch';
+      t.targetMs = 0;
+    }
   }
   t.subject = subject || t.subject;
   t.running = true;
@@ -127,6 +151,8 @@ export function reset() {
   t.startedAt = null;
   t.accumulatedMs = 0;
   t.lastResumeAt = null;
+  t.mode = 'stopwatch';
+  t.targetMs = 0;
   stopTicking();
   save();
   emit();

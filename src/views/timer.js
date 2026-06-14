@@ -12,8 +12,15 @@ import { featuredPiece } from '../collection.js';
 import { artSVG } from '../pixel/artgen.js';
 import { MIN_SESSION_MS } from '../timerStore.js';
 import { dailyProgress, totalDailyGoal, totalTodayMinutes, subjectTotalMinutes } from '../subjects.js';
+import { logStudySession } from '../social.js';
 
 let unsub = null;
+
+// ---- Pre-start mode selection (for the next session only) ----
+const COUNTDOWN_PRESETS = [15, 25, 50]; // minutes
+let pendingMode = 'stopwatch';   // 'stopwatch' | 'countdown'
+let pendingMinutes = 25;         // countdown target when pendingMode === 'countdown'
+let countdownHandled = false;    // guards the one-shot countdown-complete finalize
 
 // ---- Deep-Space Focus Mode state ----
 const BEAT_MS = 25 * 60 * 1000; // a "focus beat" every 25 minutes
@@ -64,6 +71,23 @@ function ensureToggle(st) {
   toggleBtn.textContent = immersive ? '⤡ exit focus' : '⤢ focus view';
 }
 
+/** Big-clock text for an active session (remaining for countdown, else elapsed). */
+function clockText(st) {
+  return fmtClock(st.mode === 'countdown' ? st.remainingMs : st.elapsedMs);
+}
+/** Small line under the clock for an active session. */
+function clockSub(st) {
+  if (st.mode !== 'countdown') return '';
+  return `${fmtClock(st.elapsedMs)} elapsed · ${fmtDuration(Math.round(st.targetMs / 60000))} goal`;
+}
+/** Big-clock preview before starting (reflects the pending mode choice). */
+function previewClockText() {
+  return pendingMode === 'countdown' ? fmtClock(pendingMinutes * 60000) : '00:00';
+}
+function previewClockSub() {
+  return pendingMode === 'countdown' ? `Counts down from ${fmtDuration(pendingMinutes)}` : '';
+}
+
 export function renderTimer(root, { rerenderAll, navigate }) {
   const s = getState();
   const ts = timer.timerState();
@@ -75,9 +99,11 @@ export function renderTimer(root, { rerenderAll, navigate }) {
     <section class="panel timer-hero">
       ${featuredSprite ? `<div class="timer-collectible" title="${escapeHtml(featured.name)}">${featuredSprite}</div>` : ''}
       <div class="timer-subject" id="t-subject">${ts.subject ? escapeHtml(ts.subject) : 'SELECT A SUBJECT'}</div>
-      <div class="timer-clock ${ts.running ? 'running' : ''}" id="t-clock">${fmtClock(ts.elapsedMs)}</div>
+      <div class="timer-clock ${ts.running ? 'running' : ''} ${ts.mode === 'countdown' ? 'countdown' : ''}" id="t-clock">${clockText(ts)}</div>
+      <div id="t-clocksub" class="muted" style="font-size:10px;min-height:12px">${clockSub(ts)}</div>
 
-      <div id="t-pickwrap" style="max-width:320px;margin:16px auto 0"></div>
+      <div id="t-modewrap" style="max-width:320px;margin:16px auto 0"></div>
+      <div id="t-pickwrap" style="max-width:320px;margin:12px auto 0"></div>
 
       <div class="btn-row" style="justify-content:center;margin-top:18px" id="t-controls"></div>
       <div id="t-hint" class="muted" style="margin-top:12px;font-size:11px"></div>
@@ -99,8 +125,10 @@ export function renderTimer(root, { rerenderAll, navigate }) {
 
   const controls = root.querySelector('#t-controls');
   const clock = root.querySelector('#t-clock');
+  const clockSubEl = root.querySelector('#t-clocksub');
   const subjectLabel = root.querySelector('#t-subject');
   const pickWrap = root.querySelector('#t-pickwrap');
+  const modeWrap = root.querySelector('#t-modewrap');
 
   root.querySelector('#t-editsubs').onclick = () => navigate('subjects');
 
@@ -116,14 +144,61 @@ export function renderTimer(root, { rerenderAll, navigate }) {
     });
   }
 
+  /** Mode picker (stopwatch / countdown + duration). Hidden once a session runs. */
+  function renderMode() {
+    const st = timer.timerState();
+    if (st.active) { modeWrap.innerHTML = ''; return; }
+    const presets = COUNTDOWN_PRESETS.map(
+      (m) => `<button class="btn ${pendingMode === 'countdown' && pendingMinutes === m ? 'btn-primary' : 'btn-ghost'} t-preset" data-min="${m}">${m}m</button>`
+    ).join('');
+    modeWrap.innerHTML = `
+      <div class="timer-mode-seg">
+        <button class="btn ${pendingMode === 'stopwatch' ? 'btn-primary' : 'btn-ghost'}" data-mode="stopwatch">⏱ Stopwatch</button>
+        <button class="btn ${pendingMode === 'countdown' ? 'btn-primary' : 'btn-ghost'}" data-mode="countdown">⏳ Countdown</button>
+      </div>
+      <div class="timer-duration" ${pendingMode === 'countdown' ? '' : 'hidden'}>
+        ${presets}
+        <input type="number" class="t-custom-min" min="1" max="600" step="5" value="${pendingMinutes}" aria-label="Custom minutes" />
+        <span class="muted" style="font-size:10px">min</span>
+      </div>`;
+
+    modeWrap.querySelectorAll('[data-mode]').forEach((b) => {
+      b.onclick = () => { pendingMode = b.dataset.mode; renderMode(); refreshClock(); };
+    });
+    modeWrap.querySelectorAll('.t-preset').forEach((b) => {
+      b.onclick = () => { pendingMinutes = Number(b.dataset.min); renderMode(); refreshClock(); };
+    });
+    const custom = modeWrap.querySelector('.t-custom-min');
+    custom?.addEventListener('input', () => {
+      const v = Math.min(600, Math.max(1, Math.round(Number(custom.value) || 0)));
+      pendingMinutes = v;
+      modeWrap.querySelectorAll('.t-preset').forEach((p) => {
+        p.classList.toggle('btn-primary', Number(p.dataset.min) === v);
+        p.classList.toggle('btn-ghost', Number(p.dataset.min) !== v);
+      });
+      refreshClock();
+    });
+  }
+
+  /** Repaint the big clock + its sub-label from current (or pending) state. */
+  function refreshClock() {
+    const st = timer.timerState();
+    clock.textContent = st.active ? clockText(st) : previewClockText();
+    clock.classList.toggle('countdown', st.active ? st.mode === 'countdown' : pendingMode === 'countdown');
+    clockSubEl.textContent = st.active ? clockSub(st) : previewClockSub();
+  }
+
   function renderControls() {
     const st = timer.timerState();
     if (!st.active) {
-      controls.innerHTML = `<button class="btn btn-primary btn-lg" id="t-start">▶ Start Studying</button>`;
+      const label = pendingMode === 'countdown' ? `▶ Start ${fmtDuration(pendingMinutes)} Countdown` : '▶ Start Studying';
+      controls.innerHTML = `<button class="btn btn-primary btn-lg" id="t-start">${label}</button>`;
       controls.querySelector('#t-start').onclick = () => {
         const subj = (timer.timerState().subject || '').trim();
         if (!subj) { toast('Pick a subject first, Commander.'); return; }
-        timer.start(subj);
+        if (pendingMode === 'countdown' && pendingMinutes < 1) { toast('Set a countdown of at least 1 minute.'); return; }
+        countdownHandled = false;
+        timer.start(subj, pendingMode === 'countdown' ? { mode: 'countdown', targetMs: pendingMinutes * 60000 } : {});
       };
     } else if (st.running) {
       controls.innerHTML = `
@@ -140,25 +215,53 @@ export function renderTimer(root, { rerenderAll, navigate }) {
     }
   }
 
-  function doStop() {
+  function doStop({ completed = false } = {}) {
+    // A completed countdown logs exactly its target — even if the user was on
+    // another view when it hit zero (the store keeps counting wall-clock time).
+    const targetMs = timer.timerState().targetMs;
     const result = timer.stop();
     // Leaving the session: drop the immersive view and reset for next time.
     exitFocus();
     immersive = true;
     beatsSeen = 0;
+    countdownHandled = false;
     if (toggleBtn) { toggleBtn.remove(); toggleBtn = null; }
     if (!result) return;
-    if (result.elapsedMs < MIN_SESSION_MS) { toast('Session too short to log (under a minute).'); return; }
+    if (completed && targetMs > 0) {
+      result.endTime = result.startTime + targetMs;
+      result.elapsedMs = targetMs;
+    }
+    if (result.elapsedMs < MIN_SESSION_MS) {
+      if (!completed) toast('Session too short to log (under a minute).');
+      return;
+    }
     const summary = processSessionEnd(result.subject, result.startTime, result.endTime);
+    // Mirror the finished session to the friends activity feed (opt-out + RLS
+    // friend-scoped inside social.js; no-ops when cloud isn't configured).
+    logStudySession({ subject: result.subject, minutes: summary.durationMinutes, startTime: result.startTime, endTime: result.endTime });
+    if (completed) {
+      confettiBurst();
+      toast(`✦ Countdown complete — ${fmtDuration(summary.durationMinutes)} logged!`);
+    }
     showSummary(summary, () => rerenderAll());
   }
 
   let lastActive = ts.active;
   function tick(st) {
-    clock.textContent = fmtClock(st.elapsedMs);
+    clock.textContent = clockText(st);
     clock.classList.toggle('running', st.running);
+    clock.classList.toggle('countdown', st.mode === 'countdown');
+    clockSubEl.textContent = clockSub(st);
     subjectLabel.textContent = st.subject ? st.subject : 'SELECT A SUBJECT';
-    if (st.active !== lastActive) { lastActive = st.active; renderPicker(); }
+    if (st.active !== lastActive) { lastActive = st.active; renderPicker(); renderMode(); }
+
+    // Countdown reached zero → finalize once (celebrate in doStop).
+    if (st.mode === 'countdown' && st.running && st.completed && !countdownHandled) {
+      countdownHandled = true;
+      doStop({ completed: true });
+      return;
+    }
+
     renderControls();
     renderTimerGoals(root);
 
@@ -176,9 +279,11 @@ export function renderTimer(root, { rerenderAll, navigate }) {
     }
   }
 
+  renderMode();
   renderPicker();
   renderControls();
   renderTimerGoals(root);
+  refreshClock(); // reflect the pending-mode preview when idle
   applyFocus(ts);
   if (unsub) unsub();
   unsub = timer.subscribe(tick);

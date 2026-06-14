@@ -497,6 +497,41 @@ label.field > span {
   color: var(--accent);
   min-height: 14px;
 }
+.timer-clock.countdown {
+  color: var(--yellow);
+  text-shadow: 0 0 14px rgba(245, 197, 24, 0.5);
+}
+.timer-clock.countdown.running {
+  color: var(--green);
+  text-shadow: 0 0 14px rgba(57, 217, 138, 0.6);
+}
+/* Stopwatch / Countdown selector + duration presets (pre-start only) */
+.timer-mode-seg {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.timer-mode-seg .btn {
+  flex: 1;
+  max-width: 150px;
+  font-size: 8px;
+}
+.timer-duration {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.timer-duration .btn {
+  font-size: 8px;
+  padding: 8px 10px;
+}
+.timer-duration .t-custom-min {
+  width: 64px;
+  text-align: center;
+}
 
 /* Daily goal rocket bar */
 .goalbar {
