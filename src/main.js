@@ -19,9 +19,11 @@ import { renderShop } from './views/shop.js';
 import { renderSubjects } from './views/subjects.js';
 import { renderOrbit } from './views/orbit.js';
 import { renderProfile } from './views/profile.js';
+import { renderSocial, cleanupSocial } from './views/social.js';
 import { renderOnboarding } from './views/onboarding.js';
 import { migrateLegacyCollection } from './collection.js';
 import { processSessionEnd } from './session.js';
+import * as social from './social.js';
 
 // Initialize Vercel Web Analytics
 import { inject } from '@vercel/analytics';
@@ -31,9 +33,13 @@ const VIEWS = {
   timer: { label: 'Timer', icon: '⏱️', render: renderTimer },
   subjects: { label: 'Subjects', icon: '📚', render: renderSubjects },
   orbit: { label: 'Orbit', icon: '🪐', render: renderOrbit },
+  crew: { label: 'Friends', icon: '👥', render: renderSocial },
   shop: { label: 'Shop', icon: '🛒', render: renderShop },
   profile: { label: 'Profile', icon: '👤', render: renderProfile },
 };
+
+// Crew is cloud-only — drop the tab when Supabase isn't configured.
+if (!social.socialEnabled()) delete VIEWS.crew;
 
 let current = 'dashboard';
 
@@ -54,6 +60,7 @@ function navigate(name, { animate = true } = {}) {
 function renderView() {
   const ctx = { navigate, rerenderAll };
   cleanupTimer();
+  cleanupSocial();
   viewEl.innerHTML = '';
   VIEWS[current].render(viewEl, ctx);
 }
@@ -87,6 +94,18 @@ subscribe((s) => {
     lastHudXp = key;
     renderHUD();
   }
+});
+
+// ---- Broadcast study presence to friends on timer start/stop ----
+// Fires only on transitions (not every tick): publishPresence runs when the
+// running flag, subject, or session start changes.
+let lastPresenceKey = null;
+timer.subscribe((ts) => {
+  if (!social.socialEnabled() || !social.getSocialUserId()) return;
+  const key = ts.running ? `on|${ts.subject}|${ts.startedAt}` : 'off';
+  if (key === lastPresenceKey) return;
+  lastPresenceKey = key;
+  social.publishPresence({ studying: ts.running, subject: ts.subject, startedAt: ts.startedAt });
 });
 
 // ---- Settings via long-press / click on HUD avatar ----
@@ -154,7 +173,11 @@ async function boot() {
   if (authEnabled()) {
     // React to auth changes (incl. logout) for the whole session.
     onAuthChange((event) => {
-      if (event === 'SIGNED_OUT') showEntry(true);
+      if (event === 'SIGNED_OUT') {
+        social.clearSocialUser();
+        lastPresenceKey = null;
+        showEntry(true);
+      }
     });
     const session = await getSession();
     if (session?.user) {
@@ -214,10 +237,12 @@ function applyDraft(draft) {
 /** Point persistence at this user and pull their cloud save into memory. */
 async function loadUser(user) {
   setStorageKey(`studyspace.v1.${user.id}`);
+  social.setSocialUser(user.id);
   let data = null;
   try { data = await loadSave(user.id); } catch (e) { console.warn('Cloud load failed:', e.message); }
   hydrate(data || {}); // remote save, or a fresh default (triggers onboarding)
-  onPersist((s) => queueSave(user.id, s)); // every persist now also syncs to the cloud
+  // every persist now also syncs the cloud save AND the public crew profile
+  onPersist((s) => { queueSave(user.id, s); social.syncProfile(); });
 }
 
 /** Daily/monthly housekeeping, then route to onboarding or the app. */
