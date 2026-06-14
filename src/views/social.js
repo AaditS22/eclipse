@@ -117,6 +117,9 @@ async function doSearch(root, q) {
     box.innerHTML = `<div class="muted" style="font-size:11px;padding:6px 0">${escapeHtml(e.message)}</div>`;
     return;
   }
+  const currentQ = root.querySelector('#crew-search')?.value ?? '';
+  if (currentQ.trim() !== q.trim()) return;
+
   if (!results.length) {
     box.innerHTML = `<div class="muted" style="font-size:11px;padding:6px 0">No one found.</div>`;
     return;
