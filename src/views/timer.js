@@ -259,6 +259,7 @@ export function renderTimer(root, { rerenderAll, navigate }) {
       renderPicker();
       renderMode();
       refreshClock();
+    }
 
     renderControls();
     renderTimerGoals(root);
