@@ -173,11 +173,12 @@ export function renderTimer(root, { rerenderAll, navigate }) {
         <button class="btn ${pendingMode === 'stopwatch' ? 'btn-primary' : 'btn-ghost'}" data-mode="stopwatch">⏱ Stopwatch</button>
         <button class="btn ${pendingMode === 'countdown' ? 'btn-primary' : 'btn-ghost'}" data-mode="countdown">⏳ Countdown</button>
       </div>
-      <div class="timer-duration" ${pendingMode === 'countdown' ? '' : 'hidden'}>
+      ${pendingMode === 'countdown' ? `
+      <div class="timer-duration">
         ${presets}
         <input type="number" class="t-custom-min" min="1" max="600" step="5" value="${pendingMinutes}" aria-label="Custom minutes" />
         <span class="muted" style="font-size:10px">min</span>
-      </div>`;
+      </div>` : ''}`;
 
     modeWrap.querySelectorAll('[data-mode]').forEach((b) => {
       b.onclick = () => { pendingMode = b.dataset.mode; renderMode(); refreshClock(); };

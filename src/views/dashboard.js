@@ -101,7 +101,9 @@ export function renderDashboard(root, { navigate }) {
 
     root.querySelector('#d-start').onclick = () => {
       if (!chosen) { toast('Pick a subject first, Commander.'); return; }
-      timer.start(chosen);
+      // Carry the chosen subject over, but let the Timer view pick the mode
+      // (stopwatch vs countdown) rather than launching straight into one.
+      timer.setSubject(chosen);
       navigate('timer');
     };
     root.querySelector('#d-editsubs').onclick = () => navigate('subjects');
