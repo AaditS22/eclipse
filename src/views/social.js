@@ -78,10 +78,15 @@ function headerPanel(handle, settings) {
 }
 
 function wireHeader(root) {
-  root.querySelector('#crew-copy')?.addEventListener('click', () => {
+  root.querySelector('#crew-copy')?.addEventListener('click', async () => {
     const h = getState().user.handle || '';
-    navigator.clipboard?.writeText('@' + h);
-    toast('Friend code copied.');
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText('@' + h);
+      toast('Friend code copied.');
+    } catch {
+      toast('Could not copy friend code.');
+    }
   });
   root.querySelector('#crew-ghost')?.addEventListener('change', (e) => {
     update((st) => { st.settings.ghostMode = e.target.checked; });
