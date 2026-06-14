@@ -271,7 +271,11 @@ export async function publishPresence({ studying = false, subject = '', startedA
 /** Current presence rows for a set of friend ids → { userId: row }. */
 export async function fetchFriendsPresence(friendIds) {
   if (!supabase || !friendIds.length) return {};
-  const { data } = await supabase.from('presence').select('*').in('user_id', friendIds);
+  const { data, error } = await supabase.from('presence').select('*').in('user_id', friendIds);
+  if (error) {
+    console.warn('[Eclipse] Presence fetch failed:', error.message);
+    return {};
+  }
   return Object.fromEntries((data || []).map((p) => [p.user_id, p]));
 }
 
