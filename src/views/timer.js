@@ -257,7 +257,7 @@ export function renderTimer(root, { rerenderAll, navigate }) {
       if (!st.active) { immersive = true; beatsSeen = 0; }
       renderPicker();
       renderMode();
-    }
+      refreshClock();
 
     renderControls();
     renderTimerGoals(root);
