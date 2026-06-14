@@ -173,15 +173,17 @@ async function loadAndRender(root) {
     .map((f) => ({ f, p: presence[f.profile.id] }))
     .filter((x) => x.p && x.p.is_studying && x.p.started_at);
 
+  if (!body.isConnected) return;
+
   body.innerHTML =
     studyingSection(studyingNow) +
     requestsSection(requests) +
     friendsSection(friends, presence) +
     leaderboardSection(board);
 
+  if (!body.isConnected) return;
   wireBody(body, root);
   startTicker(body);
-}
 
 function studyingSection(list) {
   const rows = list.map(({ f, p }) => {
