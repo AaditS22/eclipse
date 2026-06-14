@@ -184,6 +184,7 @@ async function loadAndRender(root) {
   if (!body.isConnected) return;
   wireBody(body, root);
   startTicker(body);
+}
 
 function studyingSection(list) {
   const rows = list.map(({ f, p }) => {
