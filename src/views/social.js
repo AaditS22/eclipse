@@ -393,8 +393,14 @@ function openFriendProfile(profile) {
 /** A non-interactive polaroid for the friend-profile modal. */
 function friendPolaroid(p) {
   const isRelic = p.kind === 'relic';
-  const tint = isRelic ? (p.tierColor || getRelicTier(p.tier).color) : (RARITY_COLOR[p.rarity] || '#6b7280');
-  const tag = isRelic ? `🏆 ${p.tierLabel || getRelicTier(p.tier).label}` : (RARITY[p.rarity]?.label || '');
+  const rawTint = isRelic
+    ? (p.tierColor || getRelicTier(p.tier).color)
+    : (RARITY_COLOR[p.rarity] || '#6b7280');
+  const tint = /^#[0-9a-f]{6}$/i.test(rawTint) ? rawTint : '#6b7280';
+  const rawTag = isRelic
+    ? `🏆 ${p.tierLabel || getRelicTier(p.tier).label}`
+    : (RARITY[p.rarity]?.label || '');
+  const tag = escapeHtml(rawTag);
   return `<figure class="polaroid" style="--tint:${tint}">
     <div class="pl-frame">${artSVG(p, fitScale(p, 104))}</div>
     <figcaption class="pl-cap">${escapeHtml(p.name)}</figcaption>
