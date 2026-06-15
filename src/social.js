@@ -143,6 +143,12 @@ export async function getMyProfile() {
 const PUBLIC_COLS = 'id, handle, username, level, avatar_config, planet_name';
 const PUBLIC_VIEW = 'profiles_public';
 
+// Everything the friends list / leaderboard / studying-now rows render —
+// deliberately NOT `collection`, which is heavy (pixel-art grids) and only
+// needed when a single friend's profile modal is opened (fetchFriendCollection).
+const FRIEND_COLS =
+  'id, handle, username, level, avatar_config, planet_id, planet_name, total_minutes, current_streak, weekly_minutes, weekly_xp, week_start';
+
 /** Accepted friends → [{ friendshipId, profile }]. */
 export async function listFriends() {
   if (!supabase || !currentUserId) return [];
@@ -154,13 +160,29 @@ export async function listFriends() {
   if (!fr.length) return [];
 
   const ids = fr.map((f) => (f.requester === currentUserId ? f.addressee : f.requester));
-  const { data: profs } = await supabase.from('profiles').select('*').in('id', ids);
+  const { data: profs } = await supabase.from('profiles').select(FRIEND_COLS).in('id', ids);
   const byId = Object.fromEntries((profs || []).map((p) => [p.id, p]));
 
   return fr.map((f) => {
     const otherId = f.requester === currentUserId ? f.addressee : f.requester;
     return { friendshipId: f.id, profile: byId[otherId] || { id: otherId, username: 'Unknown', handle: '' } };
   });
+}
+
+/** A friend's forged art + featured piece, fetched lazily when their profile
+ *  modal opens so the friends list stays light. RLS restricts this to friends. */
+export async function fetchFriendCollection(friendId) {
+  if (!supabase || !currentUserId) return { collection: [], featuredArt: null };
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('collection, featured_art')
+    .eq('id', friendId)
+    .maybeSingle();
+  if (error || !data) {
+    if (error) console.warn('[Eclipse] Friend collection fetch failed:', error.message);
+    return { collection: [], featuredArt: null };
+  }
+  return { collection: Array.isArray(data.collection) ? data.collection : [], featuredArt: data.featured_art || null };
 }
 
 /** Pending requests → { incoming: [{id, profile}], outgoing: [...] }. */

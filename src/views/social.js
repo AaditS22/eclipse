@@ -23,6 +23,7 @@ import {
   socialEnabled, ensureHandle, listFriends, listRequests, getLeaderboard,
   fetchFriendsPresence, searchUsers, sendRequest, respondRequest, removeFriend,
   subscribePresence, publishPresence, fetchFriendsActivity, currentWeekStartISO,
+  fetchFriendCollection,
 } from '../social.js';
 
 const RARITY_COLOR = {
@@ -209,7 +210,7 @@ function wireProfileLinks(body, friends) {
     el.addEventListener('click', (e) => {
       if (e.target.closest('button')) return; // let row buttons (e.g. remove) act normally
       const prof = profById[el.dataset.profile];
-      if (prof) openFriendProfile(prof);
+      if (prof) openFriendProfile(prof).catch((err) => toast(err.message || 'Could not load profile.'));
     });
   });
 }
@@ -344,17 +345,29 @@ function leaderboardSection(board) {
 }
 
 /* ---------------- friend profile (read-only modal) ---------------- */
-/** A friend's hub: their card + headline stats + the art they've forged. */
-function openFriendProfile(profile) {
-  const coll = Array.isArray(profile.collection) ? profile.collection : [];
+/** A friend's hub: their card + headline stats + the art they've forged.
+ *  The forged-art collection is heavy, so it's fetched on open (and cached on
+ *  the profile object for re-opens) rather than carried by the friends list. */
+async function openFriendProfile(profile) {
+  if (!Array.isArray(profile.collection)) {
+    const { collection, featuredArt } = await fetchFriendCollection(profile.id);
+    profile.collection = collection;
+    profile.featured_art = featuredArt;
+  }
+  const coll = profile.collection;
   const pieces = [...coll].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   const relics = pieces.filter((p) => p.kind === 'relic');
   const forged = pieces.filter((p) => p.kind !== 'relic');
 
   const totalMin = profile.total_minutes || 0;
   const hours = (totalMin / 60).toFixed(totalMin >= 600 ? 0 : 1).replace(/\.0$/, '');
-  // weekly_* only counts if it's from the current week; stale weeks read as 0.
-  const weekMin = profile.week_start === currentWeekStartISO() ? (profile.weekly_minutes || 0) : 0;
+  // weekly_* belongs to the current week if the friend's week_start is within a
+  // couple of days of ours — a tolerance that absorbs cross-timezone Monday-
+  // boundary skew while still zeroing out genuinely stale (last-week) totals.
+  const myMonday = new Date(currentWeekStartISO() + 'T00:00:00').getTime();
+  const theirMonday = profile.week_start ? new Date(profile.week_start + 'T00:00:00').getTime() : NaN;
+  const freshWeek = Number.isFinite(theirMonday) && Math.abs(theirMonday - myMonday) <= 2 * 86400000;
+  const weekMin = freshWeek ? (profile.weekly_minutes || 0) : 0;
   const featured = profile.featured_art ? pieces.find((p) => p.id === profile.featured_art) : null;
 
   const featuredHTML = featured
