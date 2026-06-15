@@ -16,6 +16,7 @@ import { dailyProgress, totalDailyGoal, totalTodayMinutes } from '../subjects.js
 export function renderDashboard(root, { navigate }) {
   const s = getState();
   const today = isoDate();
+  const ts = timer.timerState(); // a session in progress (active) hijacks the start CTA
 
   const totalGoal = totalDailyGoal(s);
   const totalMins = totalTodayMinutes(s, today);
@@ -41,11 +42,13 @@ export function renderDashboard(root, { navigate }) {
     </section>
 
     <section class="panel center">
-      ${hasSubjects
-        ? `<div style="max-width:320px;margin:0 auto 14px" id="d-pick"></div>
-           <button class="btn btn-primary btn-lg" id="d-start">▶ Start Studying</button>`
-        : `<div class="muted" style="font-size:12px;margin-bottom:14px">Set up your subjects to begin — pick what you study and a daily time goal for each.</div>
-           <button class="btn btn-primary btn-lg" id="d-setup">🛰️ Set Up Subjects</button>`
+      ${ts.active
+        ? studyingNowHTML(ts)
+        : hasSubjects
+          ? `<div style="max-width:320px;margin:0 auto 14px" id="d-pick"></div>
+             <button class="btn btn-primary btn-lg" id="d-start">▶ Start Studying</button>`
+          : `<div class="muted" style="font-size:12px;margin-bottom:14px">Set up your subjects to begin — pick what you study and a daily time goal for each.</div>
+             <button class="btn btn-primary btn-lg" id="d-setup">🛰️ Set Up Subjects</button>`
       }
     </section>
 
@@ -92,9 +95,11 @@ export function renderDashboard(root, { navigate }) {
     </section>
   `;
 
-  // Quick start with a subject picker
-  if (hasSubjects) {
-    let chosen = timer.timerState().subject || '';
+  // Center CTA: a live session takes over; otherwise the quick-start picker.
+  if (ts.active) {
+    root.querySelector('#d-resume').onclick = () => navigate('timer');
+  } else if (hasSubjects) {
+    let chosen = ts.subject || '';
     if (!s.subjects.some((x) => x.name === chosen && !x.completedAt)) chosen = '';
     const pick = root.querySelector('#d-pick');
     renderSubjectPicker(pick, { value: chosen, onChange: (name) => { chosen = name; } });
@@ -106,9 +111,13 @@ export function renderDashboard(root, { navigate }) {
       timer.setSubject(chosen);
       navigate('timer');
     };
-    root.querySelector('#d-editsubs').onclick = () => navigate('subjects');
+  } else {
+    root.querySelector('#d-setup').onclick = () => navigate('subjects');
+  }
 
-    // Per-subject progress bars
+  // Per-subject progress bars (whenever subjects exist, live session or not).
+  if (hasSubjects) {
+    root.querySelector('#d-editsubs').onclick = () => navigate('subjects');
     const sp = root.querySelector('#d-subprog');
     sp.innerHTML = prog
       .map(
@@ -122,8 +131,6 @@ export function renderDashboard(root, { navigate }) {
         </div>`
       )
       .join('');
-  } else {
-    root.querySelector('#d-setup').onclick = () => navigate('subjects');
   }
 
   root.querySelector('#d-orbitbtn').onclick = () => navigate('orbit');
@@ -133,6 +140,22 @@ export function renderDashboard(root, { navigate }) {
   });
 
   renderConstellation(root.querySelector('#d-constellation'));
+}
+
+/** Replaces the "Start Studying" CTA when a session is already underway, so
+ *  the home screen reflects reality and offers a jump back to the Timer. */
+function studyingNowHTML(ts) {
+  const subj = ts.subject ? escapeHtml(ts.subject) : 'a focus session';
+  const mins = Math.floor(ts.elapsedMs / 60000);
+  const elapsed = mins >= 1 ? ` · ${fmtDuration(mins)}` : '';
+  if (ts.running) {
+    return `<div class="muted" style="font-size:11px;margin-bottom:8px">Mission in progress <span class="crew-live">● LIVE</span></div>
+      <div class="pixel" style="font-size:16px;margin-bottom:14px">Studying ${subj}${elapsed}</div>
+      <button class="btn btn-primary btn-lg" id="d-resume">Go to Timer →</button>`;
+  }
+  return `<div class="muted" style="font-size:11px;margin-bottom:8px">Session paused</div>
+    <div class="pixel" style="font-size:16px;margin-bottom:14px">${subj}${elapsed}</div>
+    <button class="btn btn-primary btn-lg" id="d-resume">⏸ Resume Session</button>`;
 }
 
 /**
