@@ -14,14 +14,20 @@
 
 import { getState, update } from '../state.js';
 import { escapeHtml, fmtDuration, fmtClock, fmtTime, minutesOfDay } from '../util.js';
-import { astronautSVG } from '../pixel/sprites.js';
-import { toast, confirmModal } from '../ui.js';
+import { astronautSVG, planetIconSVG } from '../pixel/sprites.js';
+import { artSVG, fitScale, getRelicTier } from '../pixel/artgen.js';
+import { RARITY } from '../cosmetics.js';
+import { toast, confirmModal, modal } from '../ui.js';
 import * as timer from '../timerStore.js';
 import {
   socialEnabled, ensureHandle, listFriends, listRequests, getLeaderboard,
   fetchFriendsPresence, searchUsers, sendRequest, respondRequest, removeFriend,
-  subscribePresence, publishPresence, fetchFriendsActivity,
+  subscribePresence, publishPresence, fetchFriendsActivity, currentWeekStartISO,
 } from '../social.js';
+
+const RARITY_COLOR = {
+  common: '#6b7280', uncommon: '#39d98a', rare: '#3b82f6', epic: '#7c5cfc', legendary: '#f5c518',
+};
 
 let presenceUnsub = null;
 let tickInterval = null;
@@ -69,7 +75,7 @@ function headerPanel(handle, settings) {
     <div class="muted" style="font-size:11px;margin:8px 0 14px">Share this so friends can add you.</div>
     <label class="toggle-row"><input type="checkbox" id="crew-ghost" ${settings?.ghostMode ? 'checked' : ''}/> <span>Ghost mode<br><small class="muted">Hide your studying status from everyone.</small></span></label>
     <label class="toggle-row"><input type="checkbox" id="crew-hidesubj" ${settings?.hideSubject ? 'checked' : ''}/> <span>Hide subject<br><small class="muted">Show that you're studying, but not what.</small></span></label>
-    <label class="toggle-row"><input type="checkbox" id="crew-activity" ${settings?.shareActivity !== false ? 'checked' : ''}/> <span>Share today's activity<br><small class="muted">Let friends see a history of your sessions today, not just live.</small></span></label>
+    <label class="toggle-row"><input type="checkbox" id="crew-activity" ${settings?.hideActivity ? 'checked' : ''}/> <span>Hide today's activity<br><small class="muted">Keep your finished sessions off friends' feed — they'll still see when you're live.</small></span></label>
   </section>
   <section class="panel">
     <div class="panel-title">Add Friend</div>
@@ -98,7 +104,7 @@ function wireHeader(root) {
     repushPresence();
   });
   root.querySelector('#crew-activity')?.addEventListener('change', (e) => {
-    update((st) => { st.settings.shareActivity = e.target.checked; });
+    update((st) => { st.settings.hideActivity = e.target.checked; });
   });
 
   const search = root.querySelector('#crew-search');
@@ -192,7 +198,20 @@ async function loadAndRender(root) {
 
   if (!body.isConnected) return;
   wireBody(body, root);
+  wireProfileLinks(body, friends);
   startTicker(body);
+}
+
+/** Make friend rows + activity headers open a read-only friend profile. */
+function wireProfileLinks(body, friends) {
+  const profById = Object.fromEntries(friends.map((f) => [f.profile.id, f.profile]));
+  body.querySelectorAll('[data-profile]').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return; // let row buttons (e.g. remove) act normally
+      const prof = profById[el.dataset.profile];
+      if (prof) openFriendProfile(prof);
+    });
+  });
 }
 
 function studyingSection(list) {
@@ -214,22 +233,49 @@ function studyingSection(list) {
   </section>`;
 }
 
-/** Today's finished sessions from friends (history, even when not live). */
+/** Today's finished sessions from friends (history, even when not live).
+ *  Grouped per friend so a busy day shows one header + its sessions, not a
+ *  repeated name/avatar for each. `activity` is newest-first, so each group's
+ *  order (and the groups themselves) stay newest-first. */
 function activitySection(activity, friends) {
   const byId = Object.fromEntries(friends.map((f) => [f.profile.id, f.profile]));
-  const rows = activity
-    .map((a) => {
-      const prof = byId[a.user_id];
-      if (!prof) return ''; // a friend we can't resolve — skip
-      const when = fmtTime(minutesOfDay(new Date(a.ended_at)));
-      const subj = a.subject ? escapeHtml(a.subject) : 'a focus session';
-      return `<div class="crew-row">
-        <div class="crew-av">${astronautSVG(prof.avatar_config || {}, 3)}</div>
-        <div class="crew-id">
-          <div class="crew-name">${escapeHtml(prof.username)}</div>
-          <div class="crew-sub muted">Studied ${subj} · ${escapeHtml(fmtDuration(a.minutes))}</div>
+
+  // Bucket sessions by friend, preserving first-seen (newest) order.
+  const order = [];
+  const groups = {};
+  for (const a of activity) {
+    if (!byId[a.user_id]) continue; // a friend we can't resolve — skip
+    if (!groups[a.user_id]) { groups[a.user_id] = []; order.push(a.user_id); }
+    groups[a.user_id].push(a);
+  }
+
+  const rows = order
+    .map((uid) => {
+      const prof = byId[uid];
+      const sessions = groups[uid];
+      const totalMin = sessions.reduce((sum, a) => sum + (a.minutes || 0), 0);
+      const sessionRows = sessions
+        .map((a) => {
+          const when = fmtTime(minutesOfDay(new Date(a.ended_at)));
+          const subj = a.subject ? escapeHtml(a.subject) : 'a focus session';
+          return `<div class="act-session">
+            <span class="act-subj muted">Studied ${subj} · ${escapeHtml(fmtDuration(a.minutes))}</span>
+            <span class="crew-mins muted" style="font-size:9px">${escapeHtml(when)}</span>
+          </div>`;
+        })
+        .join('');
+      const tally = sessions.length > 1
+        ? `${sessions.length} sessions · ${escapeHtml(fmtDuration(totalMin))}`
+        : escapeHtml(fmtDuration(totalMin));
+      return `<div class="act-group">
+        <div class="crew-row crew-clickable" data-profile="${uid}">
+          <div class="crew-av">${astronautSVG(prof.avatar_config || {}, 3)}</div>
+          <div class="crew-id">
+            <div class="crew-name">${escapeHtml(prof.username)}</div>
+            <div class="crew-sub muted">${tally}</div>
+          </div>
         </div>
-        <div class="crew-mins muted" style="font-size:9px">${escapeHtml(when)}</div>
+        <div class="act-sessions">${sessionRows}</div>
       </div>`;
     })
     .join('');
@@ -264,7 +310,7 @@ function friendsSection(friends, presence) {
   const rows = friends.map((f) => {
     const p = presence[f.profile.id];
     const studying = !!(p && p.is_studying);
-    return `<div class="crew-row">
+    return `<div class="crew-row crew-clickable" data-profile="${f.profile.id}">
       <div class="crew-av${studying ? ' studying' : ''}">${astronautSVG(f.profile.avatar_config || {}, 3)}</div>
       <div class="crew-id">
         <div class="crew-name">${escapeHtml(f.profile.username)}</div>
@@ -295,6 +341,65 @@ function leaderboardSection(board) {
     <div class="muted" style="font-size:11px;margin-bottom:10px">Study time logged since Monday.</div>
     ${board.length > 1 || board.some((r) => r.weeklyMinutes > 0) ? rows : `<div class="muted center" style="padding:14px;font-size:12px">Add friends to compete on the board.</div>`}
   </section>`;
+}
+
+/* ---------------- friend profile (read-only modal) ---------------- */
+/** A friend's hub: their card + headline stats + the art they've forged. */
+function openFriendProfile(profile) {
+  const coll = Array.isArray(profile.collection) ? profile.collection : [];
+  const pieces = [...coll].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const relics = pieces.filter((p) => p.kind === 'relic');
+  const forged = pieces.filter((p) => p.kind !== 'relic');
+
+  const totalMin = profile.total_minutes || 0;
+  const hours = (totalMin / 60).toFixed(totalMin >= 600 ? 0 : 1).replace(/\.0$/, '');
+  // weekly_* only counts if it's from the current week; stale weeks read as 0.
+  const weekMin = profile.week_start === currentWeekStartISO() ? (profile.weekly_minutes || 0) : 0;
+  const featured = profile.featured_art ? pieces.find((p) => p.id === profile.featured_art) : null;
+
+  const featuredHTML = featured
+    ? `<div class="pc-featured"><div class="pl-frame">${artSVG(featured, fitScale(featured, 56))}</div><div class="pl-cap">${escapeHtml(featured.name)}</div></div>`
+    : '';
+
+  const relicHTML = relics.length
+    ? `<div class="panel-title" style="margin-top:16px">🏆 Relics · ${relics.length}</div>
+       <div class="polaroid-grid">${relics.map(friendPolaroid).join('')}</div>`
+    : '';
+
+  const body = `
+    <h2>${escapeHtml(profile.username)}</h2>
+    <div class="row" style="align-items:center;gap:12px;margin-bottom:14px">
+      <div class="crew-av" style="width:48px;height:48px">${astronautSVG(profile.avatar_config || {}, 4)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px">LVL ${profile.level || 1}</div>
+        <div class="muted" style="font-size:10px">${planetIconSVG(profile.planet_id || 'launch', 2)} ${escapeHtml(profile.planet_name || 'Launchpad')}</div>
+      </div>
+      ${featuredHTML}
+    </div>
+    <div class="stat-grid" style="margin-bottom:4px">
+      <div class="stat-box"><div class="v">${hours}h</div><div class="k">All Time</div></div>
+      <div class="stat-box"><div class="v">${fmtDuration(weekMin)}</div><div class="k">This Week</div></div>
+      <div class="stat-box"><div class="v">${profile.current_streak || 0}</div><div class="k">Day Streak</div></div>
+    </div>
+    <div class="panel-title" style="margin-top:16px">Forged Art${forged.length ? ` · ${forged.length}` : ''}</div>
+    ${forged.length
+      ? `<div class="polaroid-grid">${forged.map(friendPolaroid).join('')}</div>`
+      : `<div class="muted center" style="padding:14px 4px;font-size:12px">Nothing forged yet.</div>`}
+    ${relicHTML}
+  `;
+  modal(body, [{ label: 'Close', className: 'btn-ghost', onClick: (c) => c() }]);
+}
+
+/** A non-interactive polaroid for the friend-profile modal. */
+function friendPolaroid(p) {
+  const isRelic = p.kind === 'relic';
+  const tint = isRelic ? (p.tierColor || getRelicTier(p.tier).color) : (RARITY_COLOR[p.rarity] || '#6b7280');
+  const tag = isRelic ? `🏆 ${p.tierLabel || getRelicTier(p.tier).label}` : (RARITY[p.rarity]?.label || '');
+  return `<figure class="polaroid" style="--tint:${tint}">
+    <div class="pl-frame">${artSVG(p, fitScale(p, 104))}</div>
+    <figcaption class="pl-cap">${escapeHtml(p.name)}</figcaption>
+    <div class="pl-tag" style="color:${tint}">${tag}</div>
+  </figure>`;
 }
 
 function wireBody(body, root) {

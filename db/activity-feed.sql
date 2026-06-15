@@ -7,7 +7,7 @@
 --  study_log mirrors each FINISHED study session so friends can see a
 --  history of what you studied today, not just your live status. Writes
 --  happen once per session (on stop / countdown completion); the client
---  opts out via the "Share today's activity" setting and blanks the
+--  opts out via the "Hide today's activity" setting and blanks the
 --  subject when "Hide subject" is on. Reads are friends-only by RLS.
 -- ============================================================
 

@@ -46,7 +46,7 @@ function defaultState() {
       focusFx: true, // deep-space ambient animations while the timer runs
       ghostMode: false, // hide your studying status from friends
       hideSubject: false, // share that you're studying, but not the subject name
-      shareActivity: true, // log finished sessions to friends' "today's activity" feed
+      hideActivity: false, // keep finished sessions out of friends' "today's activity" feed
     },
     // bookkeeping for caps / daily bonuses
     daily: {

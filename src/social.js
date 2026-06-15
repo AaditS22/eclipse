@@ -36,6 +36,10 @@ function weekStartISO(d = new Date()) {
   return isoDate(new Date(d.getFullYear(), d.getMonth(), d.getDate() - sinceMonday));
 }
 
+/** Monday (local) of the current week — so callers can tell if a friend's
+ *  cached weekly_* totals belong to this week or a stale one. */
+export const currentWeekStartISO = () => weekStartISO();
+
 /** Minutes + XP logged since this week's Monday, from local sessions. */
 function weeklyTotals(state) {
   const weekStart = weekStartISO();
@@ -107,6 +111,8 @@ async function flushProfile() {
       weekly_minutes: wk.minutes,
       weekly_xp: wk.xp,
       week_start: wk.weekStart,
+      collection: st.user.collection || [],
+      featured_art: st.user.featuredArt || null,
       updated_at: new Date().toISOString(),
     };
 
@@ -293,13 +299,13 @@ export function subscribePresence(onChange) {
 
 /**
  * Mirror a finished session to the friends activity feed. Opt-out via the
- * `shareActivity` setting; honors `hideSubject` (logs a generic label instead
+ * `hideActivity` setting; honors `hideSubject` (logs a generic label instead
  * of the subject name). Friend-scoped by RLS; no-ops without cloud/login.
  */
 export async function logStudySession({ subject, minutes, startTime, endTime }) {
   if (!supabase || !currentUserId) return;
   const st = getState();
-  if (st.settings?.shareActivity === false) return; // explicit opt-out
+  if (st.settings?.hideActivity) return; // explicit opt-out
   const mins = Math.round(Number(minutes) || 0);
   if (mins < 1) return;
   const end = new Date(endTime);

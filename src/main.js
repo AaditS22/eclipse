@@ -259,6 +259,11 @@ function startApp() {
     ensureMonth(st, today);
     normalizeSubjects(st);
     migrateLegacyCollection(st);
+    // The old opt-in "Share today's activity" became the opt-out "Hide today's
+    // activity" — carry a prior explicit opt-out across so nobody silently
+    // starts sharing again.
+    if (st.settings.shareActivity === false) st.settings.hideActivity = true;
+    delete st.settings.shareActivity;
   });
   applyTheme();
   renderHUD();
