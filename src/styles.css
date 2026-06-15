@@ -2080,6 +2080,43 @@ body.onboarding #view {
   gap: 6px;
   flex: 0 0 auto;
 }
+.crew-clickable {
+  cursor: pointer;
+}
+.crew-clickable:hover .crew-name {
+  color: var(--accent);
+}
+
+/* Today's Activity — sessions grouped under one friend header. */
+.act-group {
+  border-bottom: 1px solid var(--surface-2);
+}
+.act-group:last-child {
+  border-bottom: none;
+}
+.act-group .crew-row {
+  border-bottom: none;
+}
+.act-sessions {
+  margin: 0 0 8px 46px; /* indent under the avatar */
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.act-session {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+.act-subj {
+  font-size: 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
 @media (prefers-reduced-motion: reduce) {
   .crew-live { animation: none; }
 }

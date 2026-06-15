@@ -34,8 +34,14 @@ create table if not exists public.profiles (
   weekly_minutes int  not null default 0,
   weekly_xp      int  not null default 0,
   week_start     date,                         -- Monday of the week weekly_* counts
+  collection     jsonb not null default '[]'::jsonb, -- forged art + relics, for friend profile views
+  featured_art   text,                         -- id of the piece pinned on their card
   updated_at     timestamptz not null default now()
 );
+
+-- For tables created before the friend-profile feature, add the columns.
+alter table public.profiles add column if not exists collection jsonb not null default '[]'::jsonb;
+alter table public.profiles add column if not exists featured_art text;
 
 -- case-insensitive handle lookups for friend search
 create index if not exists profiles_handle_lower_idx on public.profiles (lower(handle));
