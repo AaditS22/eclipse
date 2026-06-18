@@ -1,53 +1,15 @@
 /* ============================================================
-   The Foundry — generator catalogue + collection helpers.
-   Generators are the gacha-style art forges: each costs Credits,
-   produces 3 pieces, and you keep one. Stronger forges weight the
-   rarity roll harder, which in turn yields richer pixel art.
+   Collection helpers — your earned pieces live here.
+
+   The collection holds commemorative Relics (earned by completing a
+   subject) plus any art migrated from older builds. The retired
+   Foundry's gacha forges no longer mint new pieces, but anything
+   already earned stays displayable.
    ============================================================ */
 
 import { RARITY } from './cosmetics.js';
 import { collectibleArt } from './pixel/sprites.js';
 import { uid } from './util.js';
-
-// Weights are relative; they don't need to sum to 100.
-export const GENERATORS = [
-  {
-    id: 'forge-scrap',
-    name: 'Scrap Forge',
-    tier: 1,
-    cost: 5,
-    blurb: 'Salvaged parts welded by hand. Cheap pulls, humble odds — but the cosmos is strange, and even scrap gets lucky.',
-    weights: { common: 62, uncommon: 28, rare: 9, epic: 1, legendary: 0 },
-  },
-  {
-    id: 'forge-nova',
-    name: 'Nova Forge',
-    tier: 2,
-    cost: 12,
-    blurb: 'Stellar-grade synthesis. Vivid palettes, real shot at the good stuff, and the occasional epic.',
-    weights: { common: 30, uncommon: 38, rare: 22, epic: 9, legendary: 1 },
-  },
-  {
-    id: 'forge-quantum',
-    name: 'Quantum Forge',
-    tier: 3,
-    cost: 24,
-    blurb: 'Bleeding-edge probability collapse. The only forge that can fold a legendary into being.',
-    weights: { common: 8, uncommon: 26, rare: 34, epic: 24, legendary: 8 },
-  },
-];
-
-export function getGenerator(id) {
-  return GENERATORS.find((g) => g.id === id);
-}
-
-/** Odds as integer percentages for display (sorted high→low rarity). */
-export function rarityOdds(generator) {
-  const total = Object.values(generator.weights).reduce((a, b) => a + b, 0);
-  return ['legendary', 'epic', 'rare', 'uncommon', 'common']
-    .filter((r) => generator.weights[r] > 0)
-    .map((r) => ({ rarity: r, pct: Math.round((generator.weights[r] / total) * 100) }));
-}
 
 // ---- legacy migration -------------------------------------------------
 // Older builds kept collected space objects as `col-*` inventory entries

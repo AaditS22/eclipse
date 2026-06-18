@@ -1,27 +1,16 @@
 /* ============================================================
-   The Shop — the single place you spend Credits. One purchasable
-   surface, three sections:
-     • Forges          — gacha art generators; each pull mints 3, keep 1
+   The Shop — the single place you spend Credits. Purchasable
+   cosmetic tracks:
      • Astronaut Suits — recolour your avatar (equippable)
      • Dashboard Themes — incl. planet themes that recolour the UI
-   What you forge (and the relics you earn) lives in your Profile.
+   The relics you earn by completing subjects live in your Profile.
    ============================================================ */
 
 import { getState, update } from '../state.js';
 import { CATALOG, CATEGORIES, RARITY, canAfford, getCosmetic } from '../cosmetics.js';
 import { modal, toast } from '../ui.js';
 import { applyTheme } from '../hud.js';
-import { GENERATORS, getGenerator, rarityOdds } from '../collection.js';
-import { generateArt, artSVG, fitScale } from '../pixel/artgen.js';
 import { fmtCredits } from '../util.js';
-
-const RARITY_COLOR = {
-  common: '#6b7280',
-  uncommon: '#39d98a',
-  rare: '#3b82f6',
-  epic: '#7c5cfc',
-  legendary: '#f5c518',
-};
 
 export function renderShop(root, { rerenderAll }) {
   const s = getState();
@@ -32,13 +21,7 @@ export function renderShop(root, { rerenderAll }) {
         <div class="panel-title" style="margin:0">The Shop</div>
         <div class="hud-credits pixel" style="font-size:10px">◈ ${fmtCredits(s.user.credits)} Credits</div>
       </div>
-      <div class="muted" style="margin-top:8px;font-size:11px">Earn 1 Credit per 100 XP. Forge one-of-a-kind art, recolour your suit, and unlock planet themes. Everything you forge shows up in your <b>Profile</b>.</div>
-    </section>
-
-    <section class="panel">
-      <div class="panel-title">Forges</div>
-      <div class="muted" style="font-size:11px;margin-bottom:10px">Each pull mints three abstract pieces — keep the one you love, scrap the rest. Pricier forges roll richer art.</div>
-      <div class="forge-grid">${GENERATORS.map((g) => forgeCardHTML(g, s)).join('')}</div>
+      <div class="muted" style="margin-top:8px;font-size:11px">Earn 1 Credit per 100 XP. Recolour your suit and unlock planet themes — and earn one-of-a-kind relics by completing subjects, shown in your <b>Profile</b>.</div>
     </section>
 
     <div id="shop-cats"></div>
@@ -53,71 +36,9 @@ export function renderShop(root, { rerenderAll }) {
     </section>`;
   }).join('');
 
-  root.querySelectorAll('.forge-btn').forEach((btn) =>
-    btn.addEventListener('click', () => forge(btn.dataset.gen, rerenderAll))
-  );
   catsBox.querySelectorAll('.shop-card[data-cosmetic]').forEach((el) =>
     el.addEventListener('click', () => openItem(el.dataset.cosmetic, rerenderAll))
   );
-}
-
-/* ---------------- Forges ---------------- */
-function forgeCardHTML(gen, s) {
-  const afford = s.user.credits >= gen.cost;
-  const odds = rarityOdds(gen)
-    .map((o) => `<span class="forge-odd"><i style="background:${RARITY_COLOR[o.rarity]}"></i>${o.pct}% ${RARITY[o.rarity].label}</span>`)
-    .join('');
-  return `<div class="forge-card forge-t${gen.tier}">
-    <div class="between">
-      <div class="forge-name">${gen.name}</div>
-      <div class="forge-cost">◈ ${gen.cost}</div>
-    </div>
-    <div class="forge-blurb muted">${gen.blurb}</div>
-    <div class="forge-odds">${odds}</div>
-    <button class="btn ${afford ? 'btn-primary' : ''} forge-btn" data-gen="${gen.id}" ${afford ? '' : 'disabled'}>
-      ${afford ? '⚙ Forge ×3' : `Need ◈ ${gen.cost}`}
-    </button>
-  </div>`;
-}
-
-// forge flow: deduct, mint 3, pick 1
-function forge(genId, rerenderAll) {
-  const gen = getGenerator(genId);
-  const s = getState();
-  if (s.user.credits < gen.cost) { toast('Not enough Credits.'); return; }
-
-  const picks = [generateArt(gen), generateArt(gen), generateArt(gen)];
-  update((st) => { st.user.credits -= gen.cost; });
-
-  const cards = picks
-    .map(
-      (p, i) => `<div class="pull-card" data-idx="${i}" style="--rar:${RARITY_COLOR[p.rarity]}">
-        <div class="pull-art ${p.glow ? 'glow' : ''}">${artSVG(p, fitScale(p, 78))}</div>
-        <div class="pull-name">${p.name}</div>
-        <div class="pull-rar" style="color:${RARITY_COLOR[p.rarity]}">${RARITY[p.rarity].label}</div>
-      </div>`
-    )
-    .join('');
-
-  const close = modal(
-    `<h2 class="center">${gen.name}</h2>
-     <p class="center muted" style="font-size:11px;margin:-4px 0 12px">Three minted from the void. Pick the one to keep — the rest are scrapped.</p>
-     <div class="pull-row">${cards}</div>`,
-    [{ label: 'Keep none (scrap all)', className: 'btn-ghost', onClick: (c) => { c(); toast('All three scrapped.'); rerenderAll(); } }]
-  );
-
-  document.querySelectorAll('.pull-card').forEach((el) => {
-    el.addEventListener('click', () => {
-      const piece = picks[Number(el.dataset.idx)];
-      update((st) => {
-        st.user.collection.push(piece);
-        if (!st.user.featuredArt) st.user.featuredArt = piece.id; // auto-feature your first
-      });
-      close();
-      toast(`Kept: ${piece.name} (${RARITY[piece.rarity].label})`);
-      rerenderAll();
-    });
-  });
 }
 
 /* ---------------- Cosmetics (suits / themes) ---------------- */

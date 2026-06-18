@@ -73,13 +73,6 @@ export const ACHIEVEMENTS = [
     },
   },
   {
-    id: 'collector',
-    name: 'Collector',
-    icon: '🗺️',
-    desc: 'Forge 5 pieces for your collection.',
-    check: (s) => (s.user.collection || []).length >= 5,
-  },
-  {
     id: 'voyager',
     name: 'Voyager',
     icon: '🪐',

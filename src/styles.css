@@ -775,117 +775,6 @@ label.field > span {
   box-shadow: 0 0 10px rgba(245, 197, 24, 0.3);
 }
 
-/* ---------- The Foundry ---------- */
-.forge-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 12px;
-}
-.forge-card {
-  background: var(--surface-2);
-  border: 2px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.forge-card.forge-t2 {
-  border-color: #3b82f6;
-}
-.forge-card.forge-t3 {
-  border-color: var(--yellow);
-  box-shadow: 0 0 10px rgba(245, 197, 24, 0.18);
-}
-.forge-name {
-  font-family: var(--font-pixel);
-  font-size: 10px;
-  color: var(--text);
-}
-.forge-cost {
-  font-family: var(--font-pixel);
-  font-size: 10px;
-  color: var(--yellow);
-}
-.forge-blurb {
-  font-size: 11px;
-  line-height: 1.5;
-  flex: 1;
-}
-.forge-odds {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.forge-odd {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  color: var(--muted);
-}
-.forge-odd i {
-  width: 8px;
-  height: 8px;
-  display: inline-block;
-}
-.forge-btn {
-  width: 100%;
-  font-size: 8px;
-}
-
-/* Pull reveal modal */
-.pull-row {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-.pull-card {
-  flex: 1;
-  min-width: 92px;
-  max-width: 130px;
-  background: var(--surface-2);
-  border: 2px solid var(--rar, var(--border));
-  border-radius: var(--radius);
-  padding: 10px 8px;
-  text-align: center;
-  cursor: pointer;
-  transition: transform 0.1s, box-shadow 0.12s;
-  animation: pull-in 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.4) backwards;
-}
-.pull-card:nth-child(2) { animation-delay: 0.08s; }
-.pull-card:nth-child(3) { animation-delay: 0.16s; }
-.pull-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 0 14px var(--rar);
-}
-.pull-art {
-  height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 6px;
-}
-.pull-art.glow {
-  filter: drop-shadow(0 0 6px var(--rar));
-}
-.pull-name {
-  font-size: 10px;
-  margin-bottom: 3px;
-}
-.pull-rar {
-  font-family: var(--font-pixel);
-  font-size: 8px;
-}
-@keyframes pull-in {
-  from { opacity: 0; transform: translateY(10px) scale(0.85); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .pull-card { animation: none; }
-}
-
 /* Commemorative relics */
 .relic-panel {
   border-color: var(--yellow);
@@ -1962,10 +1851,6 @@ body.onboarding #view {
   .eclipse-wordmark {
     font-size: 18px;
     letter-spacing: 3px;
-  }
-  /* Single-column where multi-column would leave unusably narrow cards. */
-  .forge-grid {
-    grid-template-columns: 1fr;
   }
   .nav-btn {
     font-size: 6px;

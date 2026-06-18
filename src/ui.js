@@ -183,7 +183,7 @@ export function celebrateRelic(relic, { onDone } = {}) {
        <div class="relic-award-art" style="filter:drop-shadow(0 0 10px ${tier.color})">${artSVG(relic, fitScale(relic, 110))}</div>
        <div class="badge-ribbon" style="background:${tier.color};color:#0b0e1a;margin-bottom:6px">🏆 ${tier.label.toUpperCase()} RELIC — ${escapeHtml(relic.engraving)}</div>
        <div class="center" style="font-size:12px;margin-bottom:4px">${escapeHtml(relic.name)}</div>
-       <div class="muted center" style="font-size:10px">${hrs} hours studied · forged ${relic.earnedAt}. Find it in the Shop.</div>
+       <div class="muted center" style="font-size:10px">${hrs} hours studied · forged ${relic.earnedAt}. Find it in your Profile.</div>
      </div>`,
     [{ label: 'Collect', className: 'btn-primary', onClick: (c) => { c(); onDone?.(); } }]
   );

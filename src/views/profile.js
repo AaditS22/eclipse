@@ -9,7 +9,6 @@ import { getState, update } from '../state.js';
 import { ACHIEVEMENTS } from '../achievements.js';
 import { fmtDuration, isoDate, escapeHtml, fmtCredits, DAYS } from '../util.js';
 import { RARITY } from '../cosmetics.js';
-import { getGenerator } from '../collection.js';
 import { artSVG, seedSig, fitScale, getRelicTier } from '../pixel/artgen.js';
 import { astronautSVG, planetIconSVG } from '../pixel/sprites.js';
 import { levelName } from '../xp.js';
@@ -152,9 +151,16 @@ function polaroidHTML(p, s) {
   </figure>`;
 }
 
+// Provenance for art already in a collection. The Foundry forges are
+// retired, but pieces minted before then keep their original label.
+const RETIRED_FORGE_NAMES = {
+  'forge-scrap': 'Scrap Forge',
+  'forge-nova': 'Nova Forge',
+  'forge-quantum': 'Quantum Forge',
+  legacy: 'Salvaged (legacy)',
+};
 function forgeLabel(p) {
-  if (p.gen === 'legacy') return 'Salvaged (legacy)';
-  return getGenerator(p.gen)?.name || 'Unknown forge';
+  return RETIRED_FORGE_NAMES[p.gen] || 'Foundry (retired)';
 }
 
 function openPiece(id, rerenderAll) {
