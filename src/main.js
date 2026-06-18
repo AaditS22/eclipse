@@ -21,7 +21,7 @@ import { renderOrbit } from './views/orbit.js';
 import { renderProfile } from './views/profile.js';
 import { renderSocial, cleanupSocial } from './views/social.js';
 import { renderOnboarding } from './views/onboarding.js';
-import { migrateLegacyCollection } from './collection.js';
+import { purgeForgedArt } from './collection.js';
 import { processSessionEnd } from './session.js';
 import * as social from './social.js';
 
@@ -258,7 +258,7 @@ function startApp() {
   update((st) => {
     ensureMonth(st, today);
     normalizeSubjects(st);
-    migrateLegacyCollection(st);
+    purgeForgedArt(st);
     // The old opt-in "Share today's activity" became the opt-out "Hide today's
     // activity" — carry a prior explicit opt-out across so nobody silently
     // starts sharing again.

@@ -27,7 +27,7 @@ export function renderDashboard(root, { navigate }) {
   const rocketLeft = `calc(${(goalPct * 100).toFixed(1)}% )`;
   const rp = rankProgress(s.rank?.monthlyXp || 0);
 
-  // Featured forged piece (floats in the hero).
+  // Featured relic (floats in the hero).
   const featured = featuredPiece(s);
   const featuredSprite = featured ? artSVG(featured, 3) : '';
 

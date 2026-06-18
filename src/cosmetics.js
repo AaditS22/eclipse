@@ -2,9 +2,8 @@
    Cosmetics — the equippable things you spend Credits on. Two tracks:
      • Astronaut Suits  — recolour your avatar (equippable)
      • Dashboard Themes — incl. planet themes that recolour the UI
-   These render alongside the Forges and your collection in the
-   unified Shop (see views/shop.js). All cosmetic. Legendary items
-   want credits AND a minimum level.
+   These are sold in the Shop (see views/shop.js). All cosmetic.
+   Legendary items want credits AND a minimum level.
    ============================================================ */
 
 import { astronautSVG, planetIconSVG } from './pixel/sprites.js';

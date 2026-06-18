@@ -169,7 +169,7 @@ export async function listFriends() {
   });
 }
 
-/** A friend's forged art + featured piece, fetched lazily when their profile
+/** A friend's collection + featured piece, fetched lazily when their profile
  *  modal opens so the friends list stays light. RLS restricts this to friends. */
 export async function fetchFriendCollection(friendId) {
   if (!supabase || !currentUserId) return { collection: [], featuredArt: null };

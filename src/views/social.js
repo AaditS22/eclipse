@@ -16,7 +16,6 @@ import { getState, update } from '../state.js';
 import { escapeHtml, fmtDuration, fmtClock, fmtTime, minutesOfDay } from '../util.js';
 import { astronautSVG, planetIconSVG } from '../pixel/sprites.js';
 import { artSVG, fitScale, getRelicTier } from '../pixel/artgen.js';
-import { RARITY } from '../cosmetics.js';
 import { toast, confirmModal, modal } from '../ui.js';
 import * as timer from '../timerStore.js';
 import {
@@ -25,10 +24,6 @@ import {
   subscribePresence, publishPresence, fetchFriendsActivity, currentWeekStartISO,
   fetchFriendCollection,
 } from '../social.js';
-
-const RARITY_COLOR = {
-  common: '#6b7280', uncommon: '#39d98a', rare: '#3b82f6', epic: '#7c5cfc', legendary: '#f5c518',
-};
 
 let presenceUnsub = null;
 let tickInterval = null;
@@ -345,9 +340,9 @@ function leaderboardSection(board) {
 }
 
 /* ---------------- friend profile (read-only modal) ---------------- */
-/** A friend's hub: their card + headline stats + the art they've forged.
- *  The forged-art collection is heavy, so it's fetched on open (and cached on
- *  the profile object for re-opens) rather than carried by the friends list. */
+/** A friend's hub: their card + headline stats + the relics they've earned.
+ *  The collection is heavy, so it's fetched on open (and cached on the
+ *  profile object for re-opens) rather than carried by the friends list. */
 async function openFriendProfile(profile) {
   if (!Array.isArray(profile.collection)) {
     const { collection, featuredArt } = await fetchFriendCollection(profile.id);
@@ -357,7 +352,6 @@ async function openFriendProfile(profile) {
   const coll = profile.collection;
   const pieces = [...coll].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   const relics = pieces.filter((p) => p.kind === 'relic');
-  const forged = pieces.filter((p) => p.kind !== 'relic');
 
   const totalMin = profile.total_minutes || 0;
   const hours = (totalMin / 60).toFixed(totalMin >= 600 ? 0 : 1).replace(/\.0$/, '');
@@ -368,16 +362,15 @@ async function openFriendProfile(profile) {
   const theirMonday = profile.week_start ? new Date(profile.week_start + 'T00:00:00').getTime() : NaN;
   const freshWeek = Number.isFinite(theirMonday) && Math.abs(theirMonday - myMonday) <= 2 * 86400000;
   const weekMin = freshWeek ? (profile.weekly_minutes || 0) : 0;
-  const featured = profile.featured_art ? pieces.find((p) => p.id === profile.featured_art) : null;
+  const featured = profile.featured_art ? relics.find((p) => p.id === profile.featured_art) : null;
 
   const featuredHTML = featured
     ? `<div class="pc-featured"><div class="pl-frame">${artSVG(featured, fitScale(featured, 56))}</div><div class="pl-cap">${escapeHtml(featured.name)}</div></div>`
     : '';
 
   const relicHTML = relics.length
-    ? `<div class="panel-title" style="margin-top:16px">🏆 Relics · ${relics.length}</div>
-       <div class="polaroid-grid">${relics.map(friendPolaroid).join('')}</div>`
-    : '';
+    ? `<div class="polaroid-grid">${relics.map(friendPolaroid).join('')}</div>`
+    : `<div class="muted center" style="padding:14px 4px;font-size:12px">No relics yet.</div>`;
 
   const body = `
     <h2>${escapeHtml(profile.username)}</h2>
@@ -394,26 +387,17 @@ async function openFriendProfile(profile) {
       <div class="stat-box"><div class="v">${fmtDuration(weekMin)}</div><div class="k">This Week</div></div>
       <div class="stat-box"><div class="v">${profile.current_streak || 0}</div><div class="k">Day Streak</div></div>
     </div>
-    <div class="panel-title" style="margin-top:16px">Forged Art${forged.length ? ` · ${forged.length}` : ''}</div>
-    ${forged.length
-      ? `<div class="polaroid-grid">${forged.map(friendPolaroid).join('')}</div>`
-      : `<div class="muted center" style="padding:14px 4px;font-size:12px">Nothing forged yet.</div>`}
+    <div class="panel-title" style="margin-top:16px">🏆 Relics${relics.length ? ` · ${relics.length}` : ''}</div>
     ${relicHTML}
   `;
   modal(body, [{ label: 'Close', className: 'btn-ghost', onClick: (c) => c() }]);
 }
 
-/** A non-interactive polaroid for the friend-profile modal. */
+/** A non-interactive relic polaroid for the friend-profile modal. */
 function friendPolaroid(p) {
-  const isRelic = p.kind === 'relic';
-  const rawTint = isRelic
-    ? (p.tierColor || getRelicTier(p.tier).color)
-    : (RARITY_COLOR[p.rarity] || '#6b7280');
+  const rawTint = p.tierColor || getRelicTier(p.tier).color;
   const tint = /^#[0-9a-f]{6}$/i.test(rawTint) ? rawTint : '#6b7280';
-  const rawTag = isRelic
-    ? `🏆 ${p.tierLabel || getRelicTier(p.tier).label}`
-    : (RARITY[p.rarity]?.label || '');
-  const tag = escapeHtml(rawTag);
+  const tag = escapeHtml(`🏆 ${p.tierLabel || getRelicTier(p.tier).label}`);
   return `<figure class="polaroid" style="--tint:${tint}">
     <div class="pl-frame">${artSVG(p, fitScale(p, 104))}</div>
     <figcaption class="pl-cap">${escapeHtml(p.name)}</figcaption>

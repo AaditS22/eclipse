@@ -24,10 +24,10 @@ function defaultState() {
         theme: 'theme-nebula',
         rocket: 'rocket-default',
       },
-      featuredCollectible: null, // legacy: pre-Foundry featured collectible (migrated away)
-      collection: [], // forged pixel-art pieces (see collection.js / artgen.js)
+      featuredCollectible: null, // legacy: pre-Foundry featured collectible (purged on load)
+      collection: [], // commemorative relics (see collection.js / artgen.js)
       featuredArt: null, // id of a collection piece shown as home/timer decor
-      collectionMigrated: false, // one-time legacy-collectible migration flag
+      collectionMigrated: false, // one-time retired-content purge flag
     },
     onboarded: false, // has the user set up their subjects yet
     subjects: [

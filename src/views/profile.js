@@ -1,23 +1,18 @@
 /* ============================================================
    Profile — the player's hub. A themed user card (avatar + suit,
-   recoloured by the equipped Dashboard theme, with the featured
-   forged art), then their stats, their collection (forged art as
-   polaroids + earned relics), achievements, and the session log.
+   recoloured by the equipped Dashboard theme, with any featured
+   art), then their stats, their earned commemorative relics,
+   achievements, and the session log.
    ============================================================ */
 
 import { getState, update } from '../state.js';
 import { ACHIEVEMENTS } from '../achievements.js';
 import { fmtDuration, isoDate, escapeHtml, fmtCredits, DAYS } from '../util.js';
-import { RARITY } from '../cosmetics.js';
 import { artSVG, seedSig, fitScale, getRelicTier } from '../pixel/artgen.js';
 import { astronautSVG, planetIconSVG } from '../pixel/sprites.js';
 import { levelName } from '../xp.js';
 import { rankProgress } from '../rank.js';
-import { modal, toast, confirmModal } from '../ui.js';
-
-const RARITY_COLOR = {
-  common: '#6b7280', uncommon: '#39d98a', rare: '#3b82f6', epic: '#7c5cfc', legendary: '#f5c518',
-};
+import { modal, toast } from '../ui.js';
 
 export function renderProfile(root, { rerenderAll }) {
   const s = getState();
@@ -29,9 +24,9 @@ export function renderProfile(root, { rerenderAll }) {
   const monthMin = rangeMinutes(sessions, 30);
   const avgLen = sessions.length ? Math.round(totalMin / sessions.length) : 0;
 
-  const pieces = [...(u.collection || [])].sort((a, b) => b.createdAt - a.createdAt);
-  const relics = pieces.filter((p) => p.kind === 'relic');
-  const forged = pieces.filter((p) => p.kind !== 'relic');
+  const relics = [...(u.collection || [])]
+    .filter((p) => p.kind === 'relic')
+    .sort((a, b) => b.createdAt - a.createdAt);
 
   root.innerHTML = `
     ${userCardHTML(s, totalMin)}
@@ -63,13 +58,6 @@ export function renderProfile(root, { rerenderAll }) {
       <div class="muted" style="font-size:11px;margin-bottom:12px">Earned by completing a subject — colour reflects the tier you reached.</div>
       <div class="polaroid-grid">${relics.map((p) => polaroidHTML(p, s)).join('')}</div>
     </section>` : ''}
-
-    <section class="panel">
-      <div class="panel-title">Forged Art${forged.length ? ` · ${forged.length}` : ''}</div>
-      ${forged.length
-        ? `<div class="polaroid-grid">${forged.map((p) => polaroidHTML(p, s)).join('')}</div>`
-        : `<div class="muted center" style="padding:18px 4px;font-size:12px">Nothing forged yet. Mint your first piece at the Shop.</div>`}
-    </section>
 
     <section class="panel">
       <div class="panel-title">Achievements</div>
@@ -116,7 +104,7 @@ function userCardHTML(s, totalMin) {
          <div class="pl-frame">${artSVG(featured, fitScale(featured, 64))}</div>
          <div class="pl-cap">${escapeHtml(featured.name)}</div>
        </div>`
-    : `<div class="pc-featured empty"><div class="muted" style="font-size:9px;text-align:center;line-height:1.4">Feature<br>forged art</div></div>`;
+    : `<div class="pc-featured empty"><div class="muted" style="font-size:9px;text-align:center;line-height:1.4">Feature<br>art</div></div>`;
 
   return `<section class="profile-card" style="border-color:${accent};background:linear-gradient(140deg, ${accent}24, var(--surface-2) 62%);box-shadow:0 0 22px ${accent}33">
     <div class="pc-main">
@@ -137,89 +125,49 @@ function userCardHTML(s, totalMin) {
   </section>`;
 }
 
-/* ---------------- Collection: polaroids ---------------- */
+/* ---------------- Collection: relic polaroids ---------------- */
 function polaroidHTML(p, s) {
   const featured = s.user.featuredArt === p.id;
-  const isRelic = p.kind === 'relic';
-  const tint = isRelic ? (p.tierColor || getRelicTier(p.tier).color) : RARITY_COLOR[p.rarity];
-  const tag = featured ? '★ FEATURED' : isRelic ? `🏆 ${(p.tierLabel || getRelicTier(p.tier).label)}` : RARITY[p.rarity].label;
-  const box = fitScale(p, 104);
+  const tint = p.tierColor || getRelicTier(p.tier).color;
+  const tag = featured ? '★ FEATURED' : `🏆 ${(p.tierLabel || getRelicTier(p.tier).label)}`;
   return `<figure class="polaroid piece-card${featured ? ' featured' : ''}" data-id="${p.id}" style="--tint:${tint}">
-    <div class="pl-frame">${artSVG(p, box)}</div>
+    <div class="pl-frame">${artSVG(p, fitScale(p, 104))}</div>
     <figcaption class="pl-cap">${escapeHtml(p.name)}</figcaption>
     <div class="pl-tag" style="color:${tint}">${tag}</div>
   </figure>`;
 }
 
-// Provenance for art already in a collection. The Foundry forges are
-// retired, but pieces minted before then keep their original label.
-const RETIRED_FORGE_NAMES = {
-  'forge-scrap': 'Scrap Forge',
-  'forge-nova': 'Nova Forge',
-  'forge-quantum': 'Quantum Forge',
-  legacy: 'Salvaged (legacy)',
-};
-function forgeLabel(p) {
-  return RETIRED_FORGE_NAMES[p.gen] || 'Foundry (retired)';
-}
-
 function openPiece(id, rerenderAll) {
   const s = getState();
   const p = (s.user.collection || []).find((x) => x.id === id);
-  if (!p) return;
+  if (!p || p.kind !== 'relic') return;
   const featured = s.user.featuredArt === id;
-  const isRelic = p.kind === 'relic';
-  const tier = isRelic ? getRelicTier(p.tier) : null;
+  const tier = getRelicTier(p.tier);
 
-  const meta = isRelic
-    ? `
+  const meta = `
     <div class="center" style="margin:8px 0 14px;filter:drop-shadow(0 0 10px ${tier.color})">${artSVG(p, fitScale(p, 130))}</div>
     <div class="summary-row"><span>Type</span><span class="v" style="color:${tier.color}">🏆 ${tier.label} Relic</span></div>
     <div class="summary-row"><span>Earned for</span><span class="v">${escapeHtml(p.engraving)}</span></div>
     <div class="summary-row"><span>Studied</span><span class="v">${(p.minutes / 60).toFixed(1).replace(/\.0$/, '')} hours</span></div>
     <div class="summary-row"><span>Completed</span><span class="v">${p.earnedAt || isoDate(new Date(p.createdAt))}</span></div>
     <div class="summary-row"><span>Seed</span><span class="v">#${seedSig(p)}</span></div>
-  `
-    : `
-    <div class="center" style="margin:8px 0 14px">${artSVG(p, fitScale(p, 130))}</div>
-    <div class="summary-row"><span>Rarity</span><span class="v"><span class="rarity-dot" style="position:static;display:inline-block;margin-right:6px;background:${RARITY_COLOR[p.rarity]}"></span>${RARITY[p.rarity].label}</span></div>
-    ${p.form ? `<div class="summary-row"><span>Form</span><span class="v">${p.form}</span></div>` : ''}
-    <div class="summary-row"><span>Forged by</span><span class="v">${forgeLabel(p)}</span></div>
-    <div class="summary-row"><span>Seed</span><span class="v">#${seedSig(p)}</span></div>
-    <div class="summary-row"><span>Minted</span><span class="v">${isoDate(new Date(p.createdAt))}</span></div>
   `;
 
-  const actions = [{ label: 'Close', className: 'btn-ghost', onClick: (c) => c() }];
-  if (!isRelic) {
-    actions.push({
-      label: 'Discard',
-      className: 'btn-red',
-      onClick: async (close) => {
-        const ok = await confirmModal(`Discard <b>${p.name}</b>? This is permanent and returns no Credits.`, { okLabel: 'Discard', danger: true });
-        if (!ok) return;
-        update((st) => {
-          st.user.collection = st.user.collection.filter((x) => x.id !== id);
-          if (st.user.featuredArt === id) st.user.featuredArt = null;
-        });
+  const actions = [
+    { label: 'Close', className: 'btn-ghost', onClick: (c) => c() },
+    {
+      label: featured ? 'Unfeature' : 'Feature on card',
+      className: featured ? 'btn' : 'btn-green',
+      onClick: (close) => {
+        update((st) => { st.user.featuredArt = featured ? null : id; });
         close();
-        toast(`Discarded: ${p.name}`);
+        toast(featured ? 'No longer featured.' : `Featured: ${p.name}`);
         rerenderAll();
       },
-    });
-  }
-  actions.push({
-    label: featured ? 'Unfeature' : 'Feature on card',
-    className: featured ? 'btn' : 'btn-green',
-    onClick: (close) => {
-      update((st) => { st.user.featuredArt = featured ? null : id; });
-      close();
-      toast(featured ? 'No longer featured.' : `Featured: ${p.name}`);
-      rerenderAll();
     },
-  });
+  ];
 
-  const title = isRelic ? `🏆 ${escapeHtml(p.name)}` : escapeHtml(p.name);
-  modal(`<h2>${title}</h2>${meta}`, actions);
+  modal(`<h2>🏆 ${escapeHtml(p.name)}</h2>${meta}`, actions);
 }
 
 /* ---------------- Stats charts (moved from the old Stats tab) ---------------- */

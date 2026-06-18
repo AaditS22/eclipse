@@ -228,12 +228,6 @@ export function collectibleSVG(id, scale = 4) {
   return spriteSVG(c.grid, c.pal, scale);
 }
 
-/** Raw grid + palette for a legacy collectible (used by collection migration). */
-export function collectibleArt(id) {
-  const c = COLLECTIBLES[id];
-  return c ? { grid: c.grid.slice(), palette: { ...c.pal } } : null;
-}
-
 // ---------------- Companion creatures ----------------
 const COMPANIONS = {
   'comp-cat': {
