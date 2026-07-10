@@ -93,6 +93,28 @@ export const ACHIEVEMENTS = [
     desc: 'Reach level 50.',
     check: (s) => s.user.level >= 50,
   },
+  // ---- Cognitive-load milestones: reward well-distributed study weeks. ----
+  {
+    id: 'steady-orbit',
+    name: 'Steady Orbit',
+    icon: '🌗',
+    desc: '2 weeks in a row with low cognitive load.',
+    check: (s) => (s.cl?.bestLowStreak || 0) >= 2,
+  },
+  {
+    id: 'balanced-flight',
+    name: 'Balanced Flight',
+    icon: '🛰️',
+    desc: '4 weeks in a row with low cognitive load.',
+    check: (s) => (s.cl?.bestLowStreak || 0) >= 4,
+  },
+  {
+    id: 'zen-navigator',
+    name: 'Zen Navigator',
+    icon: '🧘',
+    desc: '8 weeks in a row with low cognitive load.',
+    check: (s) => (s.cl?.bestLowStreak || 0) >= 8,
+  },
 ];
 
 /** Evaluate all achievements; return newly-unlocked ones (and mutate state.achievements). */

@@ -2007,3 +2007,118 @@ body.onboarding #view {
 @media (prefers-reduced-motion: reduce) {
   .crew-live { animation: none; }
 }
+
+/* ============================================================
+   Cognitive Load + 24-Hour Productivity Record
+   ============================================================ */
+.cl-chip {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  color: var(--bg);
+  padding: 4px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.cl-meter-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.cl-score {
+  font-family: var(--font-pixel);
+  font-size: 22px;
+  min-width: 44px;
+  text-align: center;
+}
+.cl-suggest {
+  margin-top: 14px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 12px;
+}
+.cl-suggest-head {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: var(--yellow);
+  margin-bottom: 8px;
+}
+.cl-suggest-item {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.cl-suggest-item + .cl-suggest-item {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* --- 24-hour record rings --- */
+.rec-strip {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+.rec-strip.wrap {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 12px 14px;
+}
+.rec-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.rec-ring {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+.rec-ring-hole {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--surface-1);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  color: var(--text);
+}
+.rec-daylabel {
+  font-size: 9px;
+  color: var(--muted);
+}
+.rec-stats {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 14px;
+  gap: 10px;
+  text-align: center;
+}
+.rec-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.rec-stats b {
+  font-family: var(--font-pixel);
+  font-size: 14px;
+}
+.rec-stats span {
+  font-size: 9px;
+  color: var(--muted);
+}
+.seg {
+  display: inline-flex;
+  gap: 4px;
+}
+.seg .btn {
+  font-size: 7px;
+  padding: 6px 10px;
+}

@@ -58,6 +58,16 @@ function defaultState() {
     stats: {
       xpToday: 0,
     },
+    // Cognitive-load weekly bookkeeping (see cognitiveLoad.js / session.js).
+    // Derived/cached — never hand-edited. `lastWeek` is a forward-only
+    // settlement cursor (the Sunday-week up to which weeks have been settled);
+    // it advances toward the current week so the balanced-week bonus is paid
+    // exactly once. Streaks feed the low-CL milestone badges.
+    cl: {
+      lastWeek: null, // yyyy-mm-dd (Sunday) settlement cursor; weeks before it are settled
+      lowStreak: 0, // consecutive settled weeks ending on a Low CL score
+      bestLowStreak: 0, // best low-CL streak ever (drives milestone badges)
+    },
   };
 }
 
