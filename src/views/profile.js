@@ -13,6 +13,8 @@ import { astronautSVG, planetIconSVG } from '../pixel/sprites.js';
 import { levelName } from '../xp.js';
 import { rankProgress } from '../rank.js';
 import { modal, toast } from '../ui.js';
+import { dailyRecords, productivitySummary } from '../productivity.js';
+import { currentCognitiveLoad, clColorVar } from '../cognitiveLoad.js';
 
 export function renderProfile(root, { rerenderAll }) {
   const s = getState();
@@ -40,6 +42,7 @@ export function renderProfile(root, { rerenderAll }) {
         <div class="stat-box"><div class="v">${fmtDuration(avgLen)}</div><div class="k">Avg Session</div></div>
         <div class="stat-box"><div class="v">${sessions.length}</div><div class="k">Sessions</div></div>
         <div class="stat-box"><div class="v">${new Set(sessions.map((x) => x.subject)).size}</div><div class="k">Subjects</div></div>
+        <div class="stat-box"><div class="v" style="color:var(--green)">${s.cl?.lowStreak || 0}</div><div class="k">Balanced Wks</div></div>
       </div>
     </section>
 
@@ -51,6 +54,18 @@ export function renderProfile(root, { rerenderAll }) {
     <section class="panel">
       <div class="panel-title">Most Productive Time</div>
       <div id="pf-heat"></div>
+    </section>
+
+    <section class="panel">
+      <div class="between">
+        <div class="panel-title" style="margin:0">24-Hour Productivity Record</div>
+        <div class="seg" id="pf-recrange">
+          <button class="btn btn-primary" data-range="7">Week</button>
+          <button class="btn btn-ghost" data-range="30">Month</button>
+        </div>
+      </div>
+      <div class="muted" style="font-size:11px;margin:8px 0 4px">Share of each 24-hour day spent studying. Green rings beat your recent average.</div>
+      <div id="pf-record"></div>
     </section>
 
     ${relics.length ? `<section class="panel relic-panel">
@@ -84,6 +99,7 @@ export function renderProfile(root, { rerenderAll }) {
 
   renderDonut(root.querySelector('#pf-donut'), sessions);
   renderHeatmap(root.querySelector('#pf-heat'), sessions);
+  renderRecord(root, sessions);
   renderLog(root, sessions);
 
   root.querySelectorAll('.piece-card').forEach((el) =>
@@ -256,6 +272,60 @@ function mix(t) {
   const c = a.map((v, i) => Math.round(v + (b[i] - v) * t));
   const alpha = 0.25 + 0.75 * t;
   return `rgba(${c[0]},${c[1]},${c[2]},${alpha})`;
+}
+
+/* ---------------- 24-Hour Productivity Record ---------------- */
+function renderRecord(root, sessions) {
+  const box = root.querySelector('#pf-record');
+  const seg = root.querySelector('#pf-recrange');
+  if (!box) return;
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#7c5cfc';
+
+  function draw(days) {
+    if (sessions.length === 0) {
+      box.innerHTML = `<div class="muted">No data yet. Log a session to start your record.</div>`;
+      return;
+    }
+    const rows = dailyRecords(sessions, days);
+    const { best, average, streak } = productivitySummary(sessions);
+
+    const rings = rows
+      .map((d) => {
+        const pct = Math.round(d.pct * 100);
+        const deg = Math.max(0, Math.min(360, d.pct * 360));
+        const beatsAvg = average > 0 && d.pct >= average && d.minutes > 0;
+        const color = beatsAvg ? 'var(--green)' : accent;
+        const label = d.minutes > 0 ? `${pct >= 1 ? pct : '<1'}%` : '·';
+        const dayNum = Number(d.iso.slice(8, 10));
+        return `<div class="rec-day" title="${d.iso}: ${fmtDuration(d.minutes)} (${pct}% of 24h)">
+          <div class="rec-ring" style="background:conic-gradient(${color} ${deg}deg, var(--surface-2) 0)">
+            <div class="rec-ring-hole">${label}</div>
+          </div>
+          <div class="rec-daylabel">${days > 7 ? dayNum : d.dayLabel}</div>
+        </div>`;
+      })
+      .join('');
+
+    box.innerHTML = `
+      <div class="rec-strip wrap" style="margin-top:6px">${rings}</div>
+      <div class="rec-stats">
+        <div><b style="color:var(--yellow)">${Math.round(best * 100)}%</b><span>personal best</span></div>
+        <div><b style="color:var(--green)">${streak}</b><span>day maintain streak</span></div>
+        <div><b>${Math.round(average * 100)}%</b><span>recent average</span></div>
+      </div>`;
+  }
+
+  seg?.querySelectorAll('[data-range]').forEach((b) => {
+    b.onclick = () => {
+      seg.querySelectorAll('[data-range]').forEach((x) => {
+        x.classList.toggle('btn-primary', x === b);
+        x.classList.toggle('btn-ghost', x !== b);
+      });
+      draw(Number(b.dataset.range));
+    };
+  });
+
+  draw(7);
 }
 
 function renderLog(root, sessions) {

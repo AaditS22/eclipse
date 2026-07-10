@@ -17,6 +17,22 @@ export function dayDiff(aISO, bISO) {
   return Math.round((a - b) / 86400000);
 }
 
+/** ISO date (yyyy-mm-dd) of the Sunday that starts the week containing `d`.
+ *  Sunday-based to match DAYS[] and Date.getDay(). Used as a stable weekly key. */
+export function weekStartISO(d = new Date()) {
+  const dt = d instanceof Date ? new Date(d) : new Date(d);
+  dt.setHours(0, 0, 0, 0);
+  dt.setDate(dt.getDate() - dt.getDay());
+  return isoDate(dt);
+}
+
+/** yyyy-mm-dd shifted by `n` whole days (may be negative). */
+export function addDaysISO(iso, n) {
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return isoDate(d);
+}
+
 /** Minutes since local midnight for a Date or ms timestamp. */
 export function minutesOfDay(t) {
   const d = t instanceof Date ? t : new Date(t);

@@ -345,11 +345,15 @@ function showSummary(summary, onClose) {
   for (const q of summary.completedQuests || []) {
     rows.push(`<div class="summary-row bonus"><span>Quest: ${escapeHtml(q.label)} ${q.icon}</span><span class="v">+${q.rewardXp} ⭐</span></div>`);
   }
+  if (summary.weeklyBonus > 0)
+    rows.push(`<div class="summary-row bonus"><span>Balanced Week Bonus 🌱</span><span class="v">+${summary.weeklyBonus} ⭐</span></div>`);
   rows.push(`<div class="summary-row" style="border-bottom:none;font-weight:700"><span>Total XP</span><span class="v">+${summary.totalXp ?? b.total} ⭐</span></div>`);
   if (summary.creditsEarned > 0)
     rows.push(`<div class="summary-row"><span>Credits</span><span class="v" style="color:var(--green)">+${fmtCredits(summary.creditsEarned)} ◈</span></div>`);
 
   let extras = '';
+  if (summary.weeklyBonus > 0)
+    extras += `<div class="badge-ribbon" style="background:var(--green)">🌱 BALANCED WEEK! ${summary.lowClStreak}-week low-load streak</div>`;
   if (summary.rankedUp) extras += `<div class="badge-ribbon" style="background:var(--accent);color:#0b0e1a">🪐 RANK UP! Reached ${summary.newPlanet.name}</div>`;
   if (summary.leveledUp) extras += `<div class="badge-ribbon" style="background:var(--yellow)">⬆ LEVEL UP! → ${summary.newLevel}</div>`;
   for (const a of summary.newAchievements)

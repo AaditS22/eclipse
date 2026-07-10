@@ -12,6 +12,8 @@ import { artSVG } from '../pixel/artgen.js';
 import { prefersReducedMotion } from '../util.js';
 import { rankProgress } from '../rank.js';
 import { dailyProgress, totalDailyGoal, totalTodayMinutes } from '../subjects.js';
+import { currentCognitiveLoad, clColorVar } from '../cognitiveLoad.js';
+import { dailyRecords, productivitySummary } from '../productivity.js';
 
 export function renderDashboard(root, { navigate }) {
   const s = getState();
@@ -89,6 +91,10 @@ export function renderDashboard(root, { navigate }) {
       </div>
     </section>
 
+    ${cognitiveLoadHTML(s)}
+
+    ${productivityStripHTML(s)}
+
     <section class="panel">
       <div class="panel-title">Weekly Activity · Constellation</div>
       <div id="d-constellation"></div>
@@ -133,6 +139,8 @@ export function renderDashboard(root, { navigate }) {
       .join('');
   }
 
+  root.querySelector('#d-recmore')?.addEventListener('click', () => navigate('profile'));
+
   root.querySelector('#d-orbitbtn').onclick = () => navigate('orbit');
   root.querySelector('#d-orbit').addEventListener('click', (e) => {
     if (e.target.closest('button')) return;
@@ -156,6 +164,88 @@ function studyingNowHTML(ts) {
   return `<div class="muted" style="font-size:11px;margin-bottom:8px">Session paused</div>
     <div class="pixel" style="font-size:16px;margin-bottom:14px">${subj}${elapsed}</div>
     <button class="btn btn-primary btn-lg" id="d-resume">⏸ Resume Session</button>`;
+}
+
+/**
+ * Cognitive-load indicator for the current week: a labelled meter plus, when
+ * the week is running Moderate/High, up to two pattern-specific suggestions.
+ * Hidden entirely until there's enough of a week to judge (avoids nagging).
+ */
+function cognitiveLoadHTML(s) {
+  const { dist, scored, suggestions } = currentCognitiveLoad(s.sessions);
+  if (!scored.enough) return ''; // too light a week to judge — stay quiet
+
+  const color = `var(${clColorVar(scored.label)})`;
+  const tip = {
+    Low: 'Nicely spread out — this is the low-stress zone.',
+    Moderate: 'A little bunched up. A small tweak keeps it easy.',
+    High: 'Crammed together — spreading it out will lighten the week.',
+  }[scored.label];
+
+  const suggestionCard = suggestions.length
+    ? `<div class="cl-suggest">
+         <div class="cl-suggest-head">💡 Lighten your load</div>
+         ${suggestions.map((t) => `<div class="cl-suggest-item">${escapeHtml(t)}</div>`).join('')}
+       </div>`
+    : '';
+
+  return `
+    <section class="panel">
+      <div class="between">
+        <div class="panel-title" style="margin:0">Cognitive Load · This Week</div>
+        <span class="cl-chip" style="background:${color}">${scored.label}</span>
+      </div>
+      <div class="cl-meter-row" style="margin-top:12px">
+        <div class="cl-score" style="color:${color}">${scored.score}</div>
+        <div style="flex:1">
+          <div class="gauge"><div class="gauge-fill" style="width:${scored.score}%;background:${color}"></div></div>
+          <div class="muted" style="font-size:10px;margin-top:6px">${tip} <span style="opacity:.7">Lower is better.</span></div>
+        </div>
+      </div>
+      ${suggestionCard}
+    </section>`;
+}
+
+/**
+ * 24-Hour Productivity strip: a ring per day (last 7) showing % of the day
+ * spent studying, plus the personal best and current "maintaining" streak —
+ * a moving, personal bar rather than a universal target.
+ */
+function productivityStripHTML(s) {
+  if (s.sessions.length === 0) return '';
+  const days = dailyRecords(s.sessions, 7);
+  const { best, average, streak } = productivitySummary(s.sessions);
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#7c5cfc';
+
+  const rings = days
+    .map((d) => {
+      const pct = Math.round(d.pct * 100);
+      const deg = Math.max(0, Math.min(360, d.pct * 360));
+      const beatsAvg = average > 0 && d.pct >= average && d.minutes > 0;
+      const ringColor = beatsAvg ? 'var(--green)' : accent;
+      const label = d.minutes > 0 ? `${pct >= 1 ? pct : '<1'}%` : '·';
+      return `<div class="rec-day" title="${d.dayLabel}: ${fmtDuration(d.minutes)} (${pct}% of 24h)">
+        <div class="rec-ring" style="background:conic-gradient(${ringColor} ${deg}deg, var(--surface-2) 0)">
+          <div class="rec-ring-hole">${label}</div>
+        </div>
+        <div class="rec-daylabel">${d.dayLabel}</div>
+      </div>`;
+    })
+    .join('');
+
+  return `
+    <section class="panel">
+      <div class="between">
+        <div class="panel-title" style="margin:0">24-Hour Record · Past Week</div>
+        <button class="btn btn-ghost" id="d-recmore" style="font-size:7px">Full log →</button>
+      </div>
+      <div class="rec-strip" style="margin-top:12px">${rings}</div>
+      <div class="rec-stats">
+        <div><b style="color:var(--yellow)">${Math.round(best * 100)}%</b><span>personal best</span></div>
+        <div><b style="color:var(--green)">${streak}</b><span>day maintain streak</span></div>
+        <div><b>${Math.round(average * 100)}%</b><span>your recent avg</span></div>
+      </div>
+    </section>`;
 }
 
 /**
