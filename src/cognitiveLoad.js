@@ -215,11 +215,15 @@ export function currentCognitiveLoad(sessions, refDate = new Date()) {
 }
 
 /**
- * Settle every fully-elapsed week since the last settlement, updating the CL
+ * Settle every fully-elapsed week since the settlement cursor, updating the CL
  * streak bookkeeping on `state.cl` and returning the XP earned for balanced
  * weeks. MUTATES state.cl only (XP is applied by the caller so it can fold the
- * award into a session summary). Idempotent: advancing `lastWeek` to the
- * current week guarantees each week settles exactly once.
+ * award into a session summary).
+ *
+ * `cl.lastWeek` is a forward-only cursor: the Sunday-week up to which weeks
+ * have already been settled. It only ever advances toward the current week, so
+ * each week settles exactly once even across odd clock behaviour — a clock set
+ * backwards is ignored (we never re-open an already-settled week).
  *
  * @returns {{ awardedXp:number, settled:Array<{weekStart,score,label,low,bonus}> }}
  */
@@ -227,11 +231,16 @@ export function settleCognitiveLoadWeeks(state, refDate = new Date()) {
   const cur = weekStartISO(refDate);
   const cl = state.cl || (state.cl = { lastWeek: null, lowStreak: 0, bestLowStreak: 0 });
 
-  // First ever run: anchor to this week; nothing to settle retroactively.
+  // First ever run: anchor the cursor to this week; nothing to settle retroactively.
   if (!cl.lastWeek) {
     cl.lastWeek = cur;
     return { awardedXp: 0, settled: [] };
   }
+
+  // Never move the cursor backwards. If the clock is behind the cursor (system
+  // clock set back, DST edge, stale save), there's nothing new to settle — and
+  // rewinding would let those weeks be paid a second time when time catches up.
+  if (cur <= cl.lastWeek) return { awardedXp: 0, settled: [] };
 
   let awardedXp = 0;
   const settled = [];
@@ -254,7 +263,6 @@ export function settleCognitiveLoadWeeks(state, refDate = new Date()) {
     cl.bestLowStreak = Math.max(cl.bestLowStreak || 0, cl.lowStreak);
     cl.lastWeek = addDaysISO(weekStart, 7);
   }
-  cl.lastWeek = cur; // keep aligned even if a clock jump left drift
 
   return { awardedXp, settled };
 }

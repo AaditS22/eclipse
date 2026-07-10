@@ -156,4 +156,18 @@ describe('settleCognitiveLoadWeeks', () => {
     expect(res.awardedXp).toBe(0);
     expect(state.cl.lastWeek).toBe(WEEK_START);
   });
+
+  it('does not move the cursor backwards or re-pay when the clock is set back', () => {
+    // Cursor already at the current week; a settle with an earlier clock must
+    // be a no-op (no rewind → no double-pay when time later moves forward).
+    const state = {
+      sessions: [0, 1, 2, 3, 4, 5, 6].map((d) => inPriorWeek(d, 9, 60)),
+      cl: { lastWeek: WEEK_START, lowStreak: 2, bestLowStreak: 2 },
+    };
+    const past = new Date(new Date(WEEK_START + 'T12:00:00').getTime() - 7 * 86400000);
+    const res = settleCognitiveLoadWeeks(state, past);
+    expect(res.awardedXp).toBe(0);
+    expect(state.cl.lastWeek).toBe(WEEK_START); // unchanged
+    expect(state.cl.lowStreak).toBe(2);
+  });
 });
