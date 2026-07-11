@@ -10,7 +10,7 @@ import { computeSessionXp, creditsGained, nextStreak, levelForXp } from './xp.js
 import { ensureMonth, planetIndexForXp, PLANETS } from './rank.js';
 import { evaluateAchievements } from './achievements.js';
 import { totalDailyGoal } from './subjects.js';
-import { settleCognitiveLoadWeeks } from './cognitiveLoad.js';
+import { settleCognitivePerformanceWeeks } from './cognitivePerformance.js';
 import { isoDate, uid, SUBJECT_COLORS } from './util.js';
 
 /**
@@ -88,10 +88,10 @@ export function processSessionEnd(subject, startTime, endTime) {
     st.sessions.push(finished);
 
     // Settle any week(s) that fully elapsed since the last session. A week that
-    // ended on a Low cognitive-load score pays a one-time balanced-week bonus
-    // and extends the low-CL streak (which drives milestone badges below).
-    const clSettle = settleCognitiveLoadWeeks(st, new Date(endTime));
-    const weeklyBonus = clSettle.awardedXp;
+    // landed in the Optimal cognitive-performance tier pays a one-time bonus and
+    // extends the optimal-week streak (which drives milestone badges below).
+    const cpSettle = settleCognitivePerformanceWeeks(st, new Date(endTime));
+    const weeklyBonus = cpSettle.awardedXp;
 
     st.user.xp += breakdown.total + weeklyBonus;
     st.rank.monthlyXp += breakdown.total + weeklyBonus;
@@ -129,9 +129,9 @@ export function processSessionEnd(subject, startTime, endTime) {
       rankedUp: rankAfter > rankBefore,
       newPlanet: PLANETS[rankAfter],
       newAchievements,
-      // Balanced-week payout (0 unless a week just settled on a Low CL score).
+      // Optimal-week payout (0 unless a week just settled in the Optimal tier).
       weeklyBonus,
-      lowClStreak: st.cl.lowStreak,
+      optimalStreak: st.cp.optimalStreak,
     };
   });
 

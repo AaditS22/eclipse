@@ -47,6 +47,9 @@ function defaultState() {
       ghostMode: false, // hide your studying status from friends
       hideSubject: false, // share that you're studying, but not the subject name
       hideActivity: false, // keep finished sessions out of friends' "today's activity" feed
+      // Day-type mode driving the weekly cognitive-performance targets:
+      // 'lecture' (4h weekday / 8h weekend), 'white' (10h/day), 'holidays' (5h/day).
+      dayMode: 'lecture',
     },
     // bookkeeping for caps / daily bonuses
     daily: {
@@ -58,15 +61,15 @@ function defaultState() {
     stats: {
       xpToday: 0,
     },
-    // Cognitive-load weekly bookkeeping (see cognitiveLoad.js / session.js).
-    // Derived/cached — never hand-edited. `lastWeek` is a forward-only
-    // settlement cursor (the Sunday-week up to which weeks have been settled);
-    // it advances toward the current week so the balanced-week bonus is paid
-    // exactly once. Streaks feed the low-CL milestone badges.
-    cl: {
+    // Cognitive-performance weekly bookkeeping (see cognitivePerformance.js /
+    // session.js). Derived/cached — never hand-edited. `lastWeek` is a
+    // forward-only settlement cursor (the Sunday-week up to which weeks have
+    // been settled); it advances toward the current week so the Optimal-week
+    // bonus is paid exactly once. Streaks feed the optimal-week milestone badges.
+    cp: {
       lastWeek: null, // yyyy-mm-dd (Sunday) settlement cursor; weeks before it are settled
-      lowStreak: 0, // consecutive settled weeks ending on a Low CL score
-      bestLowStreak: 0, // best low-CL streak ever (drives milestone badges)
+      optimalStreak: 0, // consecutive settled weeks that landed in the Optimal tier
+      bestOptimalStreak: 0, // best optimal-week streak ever (drives milestone badges)
     },
   };
 }

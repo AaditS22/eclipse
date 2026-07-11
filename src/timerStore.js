@@ -1,9 +1,10 @@
 /* ============================================================
    Live timer store — survives view navigation AND page reloads.
-   Tracks elapsed time across pauses and notifies subscribers each
-   second. The full timer is persisted to localStorage so that
-   closing/reopening the site resumes the same session; because
-   elapsed time is derived from real timestamps, a session that was
+   A session is simply running or stopped — there is NO pause state:
+   pausing would imply focus was already lost, so a paused block isn't a
+   true continuous study block. The full timer is persisted to localStorage
+   so that closing/reopening the site resumes the same running session;
+   because elapsed time is derived from real timestamps, a session that was
    running keeps counting the wall-clock time it was away.
    ============================================================ */
 
@@ -88,7 +89,8 @@ export function timerState() {
 }
 
 /**
- * Begin (or resume) a session. On a fresh session, `opts.mode` selects
+ * Begin a session (also the rehydration entry point for a running session
+ * restored from a prior visit). On a fresh session, `opts.mode` selects
  * 'stopwatch' (default) or 'countdown'; for countdown, `opts.targetMs` sets
  * the goal. Mode/target are locked once a session is underway.
  */
@@ -109,16 +111,6 @@ export function start(subject, opts = {}) {
   t.running = true;
   t.lastResumeAt = Date.now();
   startTicking();
-  save();
-  emit();
-}
-
-export function pause() {
-  if (!t.running) return;
-  t.accumulatedMs += Date.now() - t.lastResumeAt;
-  t.lastResumeAt = null;
-  t.running = false;
-  stopTicking();
   save();
   emit();
 }

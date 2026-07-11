@@ -264,6 +264,9 @@ function startApp() {
     // starts sharing again.
     if (st.settings.shareActivity === false) st.settings.hideActivity = true;
     delete st.settings.shareActivity;
+    // Cognitive Load → Cognitive Performance rename: drop the stale bookkeeping
+    // key so old saves don't carry a dead `cl` block alongside the new `cp`.
+    if (st.cl) delete st.cl;
   });
   applyTheme();
   renderHUD();
