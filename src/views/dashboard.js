@@ -2,7 +2,7 @@
    Home Dashboard — Eclipse landing screen.
    ============================================================ */
 
-import { getState } from '../state.js';
+import { getState, update } from '../state.js';
 import * as timer from '../timerStore.js';
 import { fmtDuration, isoDate, escapeHtml, DAYS } from '../util.js';
 import { rocketSVG, exhaustSVG, eclipseLogoSVG, planetIconSVG } from '../pixel/sprites.js';
@@ -12,10 +12,20 @@ import { artSVG } from '../pixel/artgen.js';
 import { prefersReducedMotion } from '../util.js';
 import { rankProgress } from '../rank.js';
 import { dailyProgress, totalDailyGoal, totalTodayMinutes } from '../subjects.js';
-import { currentCognitiveLoad, clColorVar } from '../cognitiveLoad.js';
+import {
+  currentPerformance,
+  tierColorVar,
+  performanceTips,
+  dayModeOf,
+  DAY_MODES,
+  DAY_MODE_ORDER,
+  CP_MIN_SCORE,
+  CP_MAX_SCORE,
+} from '../cognitivePerformance.js';
 import { dailyRecords, productivitySummary } from '../productivity.js';
+import { dailyQuote } from '../quotes.js';
 
-export function renderDashboard(root, { navigate }) {
+export function renderDashboard(root, { navigate, rerenderAll }) {
   const s = getState();
   const today = isoDate();
   const ts = timer.timerState(); // a session in progress (active) hijacks the start CTA
@@ -91,7 +101,9 @@ export function renderDashboard(root, { navigate }) {
       </div>
     </section>
 
-    ${cognitiveLoadHTML(s)}
+    ${wellbeingQuoteHTML()}
+
+    ${performanceHTML(s)}
 
     ${productivityStripHTML(s)}
 
@@ -147,6 +159,21 @@ export function renderDashboard(root, { navigate }) {
     navigate('orbit');
   });
 
+  // Day-mode selector on the weekly-performance card: changing it re-targets
+  // the whole score, so re-render the dashboard to reflect the new mode.
+  root.querySelectorAll('.cp-mode').forEach((b) =>
+    b.addEventListener('click', () => {
+      const mode = b.dataset.mode;
+      // Validate against the known modes before persisting: dataset.mode is
+      // DOM-controlled, and we never want an unknown value in the save.
+      if (!DAY_MODES[mode] || mode === dayModeOf(getState())) return;
+      update((st) => {
+        st.settings.dayMode = mode;
+      });
+      rerenderAll ? rerenderAll() : navigate('dashboard', { animate: false });
+    })
+  );
+
   renderConstellation(root.querySelector('#d-constellation'));
 }
 
@@ -156,53 +183,118 @@ function studyingNowHTML(ts) {
   const subj = ts.subject ? escapeHtml(ts.subject) : 'a focus session';
   const mins = Math.floor(ts.elapsedMs / 60000);
   const elapsed = mins >= 1 ? ` · ${fmtDuration(mins)}` : '';
-  if (ts.running) {
-    return `<div class="muted" style="font-size:11px;margin-bottom:8px">Mission in progress <span class="crew-live">● LIVE</span></div>
-      <div class="pixel" style="font-size:16px;margin-bottom:14px">Studying ${subj}${elapsed}</div>
-      <button class="btn btn-primary btn-lg" id="d-resume">Go to Timer →</button>`;
-  }
-  return `<div class="muted" style="font-size:11px;margin-bottom:8px">Session paused</div>
-    <div class="pixel" style="font-size:16px;margin-bottom:14px">${subj}${elapsed}</div>
-    <button class="btn btn-primary btn-lg" id="d-resume">⏸ Resume Session</button>`;
+  // Sessions are always running while active (no pause state).
+  return `<div class="muted" style="font-size:11px;margin-bottom:8px">Mission in progress <span class="crew-live">● LIVE</span></div>
+    <div class="pixel" style="font-size:16px;margin-bottom:14px">Studying ${subj}${elapsed}</div>
+    <button class="btn btn-primary btn-lg" id="d-resume">Go to Timer →</button>`;
+}
+
+// Plain-language help for each week type: what it means + the target it sets.
+// The whole point of the selector is to pick the right yardstick for YOUR week,
+// so a lecture week isn't judged against exam-crunch hours and vice-versa.
+const DAY_MODE_HELP = {
+  lecture: { blurb: 'A normal week with lectures', target: '4h per weekday · 8h per weekend day' },
+  white: { blurb: 'No lectures — revision or exam prep', target: '10h every day' },
+  holidays: { blurb: 'A break — studying is a bonus here', target: '5h every day · counts for extra credit' },
+};
+
+/** The week-type selector: a clear prompt, three buttons, and a line spelling
+ *  out what the chosen week means and the study target it sets. */
+function dayModeSelectorHTML(s) {
+  const cur = dayModeOf(s);
+  const btns = DAY_MODE_ORDER.map((k) => {
+    const m = DAY_MODES[k];
+    return `<button class="btn ${k === cur ? 'btn-primary' : 'btn-ghost'} cp-mode" data-mode="${k}" title="${m.label}">${m.short}</button>`;
+  }).join('');
+  const help = DAY_MODE_HELP[cur];
+  return `
+    <div class="cp-mode-prompt muted">What kind of week is it?</div>
+    <div class="cp-modes">${btns}</div>
+    <div class="cp-mode-desc"><b>${escapeHtml(DAY_MODES[cur].label)}</b> — ${escapeHtml(help.blurb)}. Target: ${escapeHtml(help.target)}.</div>`;
 }
 
 /**
- * Cognitive-load indicator for the current week: a labelled meter plus, when
- * the week is running Moderate/High, up to two pattern-specific suggestions.
- * Hidden entirely until there's enough of a week to judge (avoids nagging).
+ * Weekly Cognitive Performance card (sections 2–5): a single -10..+10 score
+ * for the whole week, its five-tier label, a diverging meter, the burnout-risk
+ * flag (kept adjacent to the score, never folded into it), and a short tip.
+ * The week-type selector always shows so the target can be set; the scored body
+ * appears once there's enough of a week to judge (avoids nagging early on).
  */
-function cognitiveLoadHTML(s) {
-  const { dist, scored, suggestions } = currentCognitiveLoad(s.sessions);
-  if (!scored.enough) return ''; // too light a week to judge — stay quiet
+function performanceHTML(s) {
+  const perf = currentPerformance(s);
+  const modeSel = dayModeSelectorHTML(s);
+  const head = `<div class="panel-title" style="margin:0">Weekly Performance</div>`;
+  // One-line framing so the number and the buttons aren't a mystery.
+  const intro = `<div class="cp-intro muted">A single score for how well this week's studying matched a healthy, steady target — from −10 (barely studied / all crammed into one day) to +10 (right on target, every day). Pick your week type so it's measured against the right goal.</div>`;
 
-  const color = `var(${clColorVar(scored.label)})`;
-  const tip = {
-    Low: 'Nicely spread out — this is the low-stress zone.',
-    Moderate: 'A little bunched up. A small tweak keeps it easy.',
-    High: 'Crammed together — spreading it out will lighten the week.',
-  }[scored.label];
+  if (!perf.enough) {
+    return `
+    <section class="panel">
+      <div class="between">${head}</div>
+      ${intro}
+      ${modeSel}
+      <div class="cp-empty muted">Log a little study this week and your score will appear here.</div>
+    </section>`;
+  }
 
-  const suggestionCard = suggestions.length
+  const color = `var(${tierColorVar(perf.tier)})`;
+  const signed = perf.score > 0 ? `+${perf.score}` : `${perf.score}`;
+  // Diverging meter: 0 sits dead-centre, the marker slides toward -10 / +10.
+  const markerPct = ((perf.score - CP_MIN_SCORE) / (CP_MAX_SCORE - CP_MIN_SCORE)) * 100;
+  const consistPct = Math.round(perf.consistency * 100);
+
+  const burnout =
+    perf.burnoutRisk === 'high' || perf.burnoutRisk === 'medium'
+      ? `<div class="cp-burnout ${perf.burnoutRisk}">🔥 Burnout risk: ${perf.burnoutRisk} — well over target and sustained. Build in some recovery.</div>`
+      : '';
+
+  const tips = performanceTips(perf);
+  const tipCard = tips.length
     ? `<div class="cl-suggest">
-         <div class="cl-suggest-head">💡 Lighten your load</div>
-         ${suggestions.map((t) => `<div class="cl-suggest-item">${escapeHtml(t)}</div>`).join('')}
+         <div class="cl-suggest-head">💡 This week</div>
+         ${tips.map((t) => `<div class="cl-suggest-item">${escapeHtml(t)}</div>`).join('')}
        </div>`
     : '';
 
   return `
     <section class="panel">
       <div class="between">
-        <div class="panel-title" style="margin:0">Cognitive Load · This Week</div>
-        <span class="cl-chip" style="background:${color}">${scored.label}</span>
+        ${head}
+        <span class="cl-chip" style="background:${color}">${escapeHtml(perf.label)}</span>
       </div>
-      <div class="cl-meter-row" style="margin-top:12px">
-        <div class="cl-score" style="color:${color}">${scored.score}</div>
+      ${intro}
+      ${modeSel}
+      <div class="cl-meter-row" style="margin-top:16px">
+        <div class="cl-score" style="color:${color}">${signed}</div>
         <div style="flex:1">
-          <div class="gauge"><div class="gauge-fill" style="width:${scored.score}%;background:${color}"></div></div>
-          <div class="muted" style="font-size:10px;margin-top:6px">${tip} <span style="opacity:.7">Lower is better.</span></div>
+          <div class="cp-track">
+            <div class="cp-track-zero"></div>
+            <div class="cp-marker" style="left:${markerPct.toFixed(1)}%;background:${color}"></div>
+          </div>
+          <div class="cp-scale muted">
+            <span>−10 needs work</span><span>0</span><span>+10 optimal</span>
+          </div>
         </div>
       </div>
-      ${suggestionCard}
+      <div class="muted" style="font-size:10px;margin-top:10px">
+        You've studied <b>${fmtDuration(perf.total)}</b> of this week's <b>${fmtDuration(perf.target)}</b> target, and your sessions have been <b>${consistPct}%</b> consistent day-to-day.
+      </div>
+      ${burnout}
+      ${tipCard}
+    </section>`;
+}
+
+/**
+ * A short, rotating wellbeing reminder (section 7). Deterministic per calendar
+ * day and drawn from discipline / nutrition / sleep / exercise / wellbeing —
+ * regular, plain reminders of consequences and benefits nudge daily behaviour.
+ */
+function wellbeingQuoteHTML() {
+  const q = dailyQuote();
+  return `
+    <section class="panel wellbeing-quote">
+      <div class="wq-cat">${escapeHtml(q.category)}</div>
+      <div class="wq-text">${escapeHtml(q.text)}</div>
     </section>`;
 }
 

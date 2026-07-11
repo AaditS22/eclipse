@@ -41,7 +41,7 @@ export function renderProfile(root, { rerenderAll }) {
         <div class="stat-box"><div class="v">${fmtDuration(avgLen)}</div><div class="k">Avg Session</div></div>
         <div class="stat-box"><div class="v">${sessions.length}</div><div class="k">Sessions</div></div>
         <div class="stat-box"><div class="v">${new Set(sessions.map((x) => x.subject)).size}</div><div class="k">Subjects</div></div>
-        <div class="stat-box"><div class="v" style="color:var(--green)">${s.cl?.lowStreak || 0}</div><div class="k">Balanced Streak</div></div>
+        <div class="stat-box"><div class="v" style="color:var(--green)">${s.cp?.optimalStreak || 0}</div><div class="k">Optimal Streak</div></div>
       </div>
     </section>
 

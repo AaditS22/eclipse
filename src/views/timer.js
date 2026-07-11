@@ -218,17 +218,11 @@ export function renderTimer(root, { rerenderAll, navigate }) {
         if (pendingMode === 'countdown' && pendingMinutes < 1) { toast('Set a countdown of at least 1 minute.'); return; }
         timer.start(subj, pendingMode === 'countdown' ? { mode: 'countdown', targetMs: pendingMinutes * 60000 } : {});
       };
-    } else if (st.running) {
-      controls.innerHTML = `
-        <button class="btn" id="t-pause">⏸ Pause</button>
-        <button class="btn btn-red" id="t-stop">⏹ Stop</button>`;
-      controls.querySelector('#t-pause').onclick = () => timer.pause();
-      controls.querySelector('#t-stop').onclick = doStop;
     } else {
-      controls.innerHTML = `
-        <button class="btn btn-green" id="t-resume">▶ Resume</button>
-        <button class="btn btn-red" id="t-stop">⏹ Stop</button>`;
-      controls.querySelector('#t-resume').onclick = () => timer.start();
+      // No pause/resume: a study block is either running or ended. Pausing
+      // would imply focus was already lost, so it wouldn't be a true
+      // continuous block — sessions are simply started and stopped.
+      controls.innerHTML = `<button class="btn btn-red" id="t-stop">⏹ Stop</button>`;
       controls.querySelector('#t-stop').onclick = doStop;
     }
   }
@@ -346,14 +340,14 @@ function showSummary(summary, onClose) {
     rows.push(`<div class="summary-row bonus"><span>Quest: ${escapeHtml(q.label)} ${q.icon}</span><span class="v">+${q.rewardXp} ⭐</span></div>`);
   }
   if (summary.weeklyBonus > 0)
-    rows.push(`<div class="summary-row bonus"><span>Balanced Week Bonus 🌱</span><span class="v">+${summary.weeklyBonus} ⭐</span></div>`);
+    rows.push(`<div class="summary-row bonus"><span>Optimal Week Bonus 🌱</span><span class="v">+${summary.weeklyBonus} ⭐</span></div>`);
   rows.push(`<div class="summary-row" style="border-bottom:none;font-weight:700"><span>Total XP</span><span class="v">+${summary.totalXp ?? b.total} ⭐</span></div>`);
   if (summary.creditsEarned > 0)
     rows.push(`<div class="summary-row"><span>Credits</span><span class="v" style="color:var(--green)">+${fmtCredits(summary.creditsEarned)} ◈</span></div>`);
 
   let extras = '';
   if (summary.weeklyBonus > 0)
-    extras += `<div class="badge-ribbon" style="background:var(--green)">🌱 BALANCED WEEK! ${summary.lowClStreak}-week low-load streak</div>`;
+    extras += `<div class="badge-ribbon" style="background:var(--green)">🌱 OPTIMAL WEEK! ${summary.optimalStreak}-week optimal streak</div>`;
   if (summary.rankedUp) extras += `<div class="badge-ribbon" style="background:var(--accent);color:#0b0e1a">🪐 RANK UP! Reached ${summary.newPlanet.name}</div>`;
   if (summary.leveledUp) extras += `<div class="badge-ribbon" style="background:var(--yellow)">⬆ LEVEL UP! → ${summary.newLevel}</div>`;
   for (const a of summary.newAchievements)

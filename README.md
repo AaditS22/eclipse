@@ -17,7 +17,9 @@ npm run preview  # preview the production build
 
 | Feature | Where |
 |---|---|
-| **Study timer** (start/pause/stop, survives navigation) | `src/timerStore.js`, `src/views/timer.js` |
+| **Study timer** (start/stop, survives navigation) | `src/timerStore.js`, `src/views/timer.js` |
+| **Weekly cognitive performance** (-10..+10 five-tier score, day-mode targets, consistency, burnout flag) | `src/cognitivePerformance.js`, `src/views/dashboard.js` |
+| **Rotating wellbeing quotes** (daily discipline/nutrition/sleep/exercise reminders) | `src/quotes.js` |
 | **XP / levels / credits / streaks** (spec tables, daily time-XP cap, RPG curve) | `src/xp.js`, `src/session.js` |
 | **Session-complete modal + XP popup + level-up confetti** | `src/views/timer.js`, `src/pixel/starfield.js` |
 | **Home HUD dashboard** (Eclipse logo, goal rocket bar, daily quests, orbit teaser, weekly constellation) | `src/views/dashboard.js` |

@@ -2054,6 +2054,105 @@ body.onboarding #view {
   border-top: 1px solid var(--border);
 }
 
+/* --- Cognitive Performance: framing text, week-type selector, meter, burnout --- */
+.cp-intro {
+  font-size: 11px;
+  line-height: 1.5;
+  margin-top: 8px;
+}
+.cp-mode-prompt {
+  font-size: 11px;
+  margin-top: 14px;
+  margin-bottom: 6px;
+}
+.cp-mode-desc {
+  font-size: 11px;
+  line-height: 1.45;
+  margin-top: 8px;
+  color: var(--text);
+  opacity: 0.85;
+}
+.cp-mode-desc b {
+  color: var(--accent);
+}
+.cp-empty {
+  font-size: 11px;
+  margin-top: 12px;
+}
+.cp-modes {
+  display: flex;
+  gap: 6px;
+}
+.cp-modes .btn {
+  flex: 1;
+  font-size: 8px;
+  padding: 8px 4px;
+}
+/* Diverging -10..+10 track with a centred zero and a sliding marker. */
+.cp-track {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 2px solid var(--border);
+}
+.cp-track-zero {
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--border);
+  transform: translateX(-50%);
+}
+.cp-marker {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 6px currentColor;
+}
+.cp-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  margin-top: 6px;
+}
+.cp-burnout {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  font-size: 11px;
+  line-height: 1.4;
+  border: 2px solid var(--red);
+  background: color-mix(in srgb, var(--red) 14%, transparent);
+  color: var(--text);
+}
+.cp-burnout.medium {
+  border-color: var(--yellow);
+  background: color-mix(in srgb, var(--yellow) 14%, transparent);
+}
+
+/* --- Homepage wellbeing quote --- */
+.wellbeing-quote {
+  border-left: 3px solid var(--accent);
+}
+.wq-cat {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.wq-text {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
 /* --- 24-hour record rings --- */
 .rec-strip {
   display: flex;

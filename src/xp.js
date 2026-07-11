@@ -14,7 +14,7 @@ export const XP = {
   DAILY_TIME_CAP: 1200, // cap on time-based XP per day ≈ 10h at 2 XP/min (bonuses uncapped)
   MIN_SESSION_SECONDS: 60, // sessions shorter than this don't log
   CREDITS_PER_XP: 100, // 1 credit per 100 XP
-  LOW_CL_WEEKLY_BONUS: 60, // paid once when a week is settled with a Low cognitive-load score
+  OPTIMAL_WEEK_BONUS: 60, // paid once when a week settles in the Optimal cognitive-performance tier
 };
 
 const RANKS = [
