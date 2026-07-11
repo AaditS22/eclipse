@@ -46,22 +46,32 @@ function restore() {
     // against corrupt, hand-edited, or future-shaped saves producing NaN
     // math or stray keys on the live timer.
     const startedAt = Number(saved?.startedAt);
-    if (!Number.isFinite(startedAt)) return;
-    const accumulatedMs = Number(saved?.accumulatedMs ?? 0);
     const lastResumeAt = saved?.lastResumeAt == null ? null : Number(saved.lastResumeAt);
+    const running = Boolean(saved?.running) && Number.isFinite(lastResumeAt);
+
+    // Only a genuinely RUNNING session survives a reload. There is no pause
+    // state anymore, so a persisted session that isn't running is a stale (or
+    // paused, from an older build) save — drop it rather than rehydrate a
+    // non-running timer that start() would refuse to touch.
+    if (!Number.isFinite(startedAt) || !running) {
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+
+    const accumulatedMs = Number(saved?.accumulatedMs ?? 0);
     const targetMs = Number(saved?.targetMs ?? 0);
 
     t.subject = typeof saved?.subject === 'string' ? saved.subject : '';
     t.startedAt = startedAt;
     t.accumulatedMs = Number.isFinite(accumulatedMs) && accumulatedMs >= 0 ? accumulatedMs : 0;
-    t.lastResumeAt = Number.isFinite(lastResumeAt) ? lastResumeAt : null;
-    t.running = Boolean(saved?.running) && t.lastResumeAt !== null;
+    t.lastResumeAt = lastResumeAt;
+    t.running = true;
     t.mode = saved?.mode === 'countdown' ? 'countdown' : 'stopwatch';
     t.targetMs = t.mode === 'countdown' && Number.isFinite(targetMs) && targetMs > 0 ? targetMs : 0;
 
-    // If it was running when we left, elapsedMs() naturally includes the
-    // time the page was closed (Date.now() - lastResumeAt). Resume ticking.
-    if (t.running) startTicking();
+    // elapsedMs() naturally includes the time the page was closed
+    // (Date.now() - lastResumeAt), so the running clock keeps counting.
+    startTicking();
   } catch (e) {
     /* corrupt/unreadable — ignore and start clean */
   }
@@ -89,23 +99,22 @@ export function timerState() {
 }
 
 /**
- * Begin a session (also the rehydration entry point for a running session
- * restored from a prior visit). On a fresh session, `opts.mode` selects
- * 'stopwatch' (default) or 'countdown'; for countdown, `opts.targetMs` sets
- * the goal. Mode/target are locked once a session is underway.
+ * Begin a FRESH session. There is no resume: if a session is already active
+ * (startedAt set) this is a no-op, so a running session is never restarted and
+ * a persisted non-running one can never be re-marked running. `opts.mode`
+ * selects 'stopwatch' (default) or 'countdown'; for countdown, `opts.targetMs`
+ * sets the goal. Mode/target are locked once the session is underway.
  */
 export function start(subject, opts = {}) {
-  if (t.running) return;
-  if (t.startedAt === null) {
-    t.startedAt = Date.now();
-    t.accumulatedMs = 0;
-    if (opts.mode === 'countdown' && Number(opts.targetMs) > 0) {
-      t.mode = 'countdown';
-      t.targetMs = Math.round(Number(opts.targetMs));
-    } else {
-      t.mode = 'stopwatch';
-      t.targetMs = 0;
-    }
+  if (t.startedAt !== null) return;
+  t.startedAt = Date.now();
+  t.accumulatedMs = 0;
+  if (opts.mode === 'countdown' && Number(opts.targetMs) > 0) {
+    t.mode = 'countdown';
+    t.targetMs = Math.round(Number(opts.targetMs));
+  } else {
+    t.mode = 'stopwatch';
+    t.targetMs = 0;
   }
   t.subject = subject || t.subject;
   t.running = true;

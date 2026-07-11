@@ -164,7 +164,9 @@ export function renderDashboard(root, { navigate, rerenderAll }) {
   root.querySelectorAll('.cp-mode').forEach((b) =>
     b.addEventListener('click', () => {
       const mode = b.dataset.mode;
-      if (mode === dayModeOf(getState())) return;
+      // Validate against the known modes before persisting: dataset.mode is
+      // DOM-controlled, and we never want an unknown value in the save.
+      if (!DAY_MODES[mode] || mode === dayModeOf(getState())) return;
       update((st) => {
         st.settings.dayMode = mode;
       });
