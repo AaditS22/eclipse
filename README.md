@@ -56,3 +56,7 @@ All sprites are inline SVG (one `<rect>` per pixel) or canvas — no image files
 
 - **Levels** are lifetime and unlimited: `xpThreshold(level) = round(100 × (level−1)^1.6)`.
 - **Rank** is a *monthly* journey outward through the planets (Launchpad → Mercury → … → Pluto), driven by XP earned that month (`src/rank.js`). Each month resets and the furthest planet you reached is archived as a trophy in the **Orbit** view.
+
+## Disclaimer
+
+This project was built almost entirely through AI-assisted development (using Claude Code), as an experiment in how far that approach can take a real, polished app. I designed the concept, features and game mechanics, directed the implementation, and used it day-to-day to refine it.
